@@ -35,6 +35,7 @@ import { LocationData } from './types/location';
 import { preloadAllImages } from './utils/preloadAssets';
 import { MeatGharLogo } from './components/MeatGharLogo';
 import { RotateCcw } from 'lucide-react';
+import { CartProvider } from './context/CartContext';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('splash');
@@ -310,8 +311,9 @@ export default function App() {
   };
 
   return (
-    <MobileFrame currentScreen={currentScreen} setScreen={navigateScreen}>
-      <AnimatePresence mode="wait">
+    <CartProvider>
+      <MobileFrame currentScreen={currentScreen} setScreen={navigateScreen}>
+        <AnimatePresence mode="wait">
         <motion.div
           key={currentScreen}
           initial={{ opacity: 0, x: 15 }}
@@ -324,8 +326,8 @@ export default function App() {
           {currentScreen === 'splash' && (
             <SplashScreen
               onNext={() => {
-                historyStackRef.current = ['signup'];
-                navigateScreen('signup');
+                historyStackRef.current = ['onboarding1'];
+                navigateScreen('onboarding1');
               }}
             />
           )}
@@ -742,5 +744,6 @@ export default function App() {
         </div>
       )}
     </MobileFrame>
+    </CartProvider>
   );
 }

@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
+import { useCart } from '../../context/CartContext';
 
 interface NotificationsScreenProps {
   onBack: () => void;
@@ -26,6 +27,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onBack,
   onNavigateTab,
 }) => {
+  const { cartCount } = useCart();
   const [unreadList, setUnreadList] = useState<string[]>(['n1', 'n2', 'n3', 'n5']);
 
   // Automatically mark all notifications as read when user opens the screen
@@ -37,18 +39,18 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   }, []);
 
   return (
-    <div className="w-full h-full min-h-[780px] bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
-      {/* Header */}
-      <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200 shadow-2xs z-20">
+    <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none font-sans">
+      {/* 1. FIXED TOP HEADER (Never scrolls) */}
+      <div className="shrink-0 bg-white px-4 pt-3 pb-3 border-b border-slate-200/90 shadow-2xs z-30">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <button
               onClick={onBack}
               className="p-1.5 rounded-full hover:bg-slate-100 text-[#BA181B] transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
             </button>
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-1.5">
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-1.5">
               <Bell className="w-5 h-5 text-[#BA181B]" /> Notifications
             </h2>
           </div>
@@ -60,8 +62,8 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         </p>
       </div>
 
-      {/* Main List */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 no-scrollbar pb-16">
+      {/* 2. SCROLLABLE MAIN CONTENT */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 no-scrollbar pb-6">
         {/* Today Section */}
         <div>
           <h3 className="text-xs font-extrabold text-slate-900 mb-2">Today</h3>
@@ -212,14 +214,14 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         </div>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="bg-white border-t border-slate-200/90 px-4 py-2 flex items-center justify-around z-20">
+      {/* 3. FIXED BOTTOM NAVIGATION BAR (Never scrolls) */}
+      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 py-2 flex items-center justify-around z-30 shadow-md">
         <button onClick={() => onNavigateTab('home')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
           <Home className="w-5 h-5 stroke-[1.8]" />
           <span className="text-[10px] font-medium text-slate-500">Home</span>
         </button>
 
-        <button onClick={() => onNavigateTab('categories')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+        <button onClick={() => onNavigateTab('category')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
           <Grid className="w-5 h-5 stroke-[1.8]" />
           <span className="text-[10px] font-medium text-slate-500">Categories</span>
         </button>
@@ -231,9 +233,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
         <button onClick={() => onNavigateTab('cart')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 relative cursor-pointer">
           <ShoppingCart className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#BA181B] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
-            2
-          </span>
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#BA181B] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
+              {cartCount}
+            </span>
+          )}
           <span className="text-[10px] font-medium text-slate-500">Cart</span>
         </button>
 

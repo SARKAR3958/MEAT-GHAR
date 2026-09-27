@@ -22,6 +22,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { HeaderMeatGharLogo, MeatGharLogo } from '../MeatGharLogo';
+import { useCart } from '../../context/CartContext';
 
 interface MyProfileScreenProps {
   userName: string;
@@ -40,6 +41,7 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
   onNavigateOption,
   onLogout,
 }) => {
+  const { cartCount } = useCart();
   const [activeModal, setActiveModal] = useState<'about' | 'privacy' | 'terms' | null>(null);
 
   const menuItems = [
@@ -55,7 +57,7 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
       icon: ShoppingCart,
       title: 'My Cart',
       subtitle: 'View items in your cart & proceed to checkout',
-      badge: '2',
+      badge: cartCount > 0 ? String(cartCount) : null,
     },
     {
       id: 'addresses',
@@ -368,14 +370,14 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <div className="bg-white border-t border-slate-200/90 px-4 py-2 flex items-center justify-around z-20">
+      {/* Fixed Bottom Navigation (Never scrolls) */}
+      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 py-2 flex items-center justify-around z-30 shadow-md">
         <button onClick={() => onNavigateOption('home')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
           <Home className="w-5 h-5 stroke-[1.8]" />
           <span className="text-[10px] font-medium text-slate-500">Home</span>
         </button>
 
-        <button onClick={() => onNavigateOption('categories')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+        <button onClick={() => onNavigateOption('category')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
           <Grid className="w-5 h-5 stroke-[1.8]" />
           <span className="text-[10px] font-medium text-slate-500">Categories</span>
         </button>
@@ -387,9 +389,11 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
 
         <button onClick={() => onNavigateOption('cart')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 relative cursor-pointer">
           <ShoppingCart className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#BA181B] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
-            2
-          </span>
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#BA181B] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
+              {cartCount}
+            </span>
+          )}
           <span className="text-[10px] font-medium text-slate-500">Cart</span>
         </button>
 

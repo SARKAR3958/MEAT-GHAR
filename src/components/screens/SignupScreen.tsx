@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { MeatGharLogo } from '../MeatGharLogo';
+import { AppImage } from '../common/AppImage';
 
 interface LoginScreenProps {
   phoneNumber: string;
@@ -36,16 +37,16 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div className="w-full h-full min-h-[780px] bg-white text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
+    <div className="w-full h-full bg-white text-slate-800 flex flex-col justify-between relative overflow-y-auto no-scrollbar select-none">
       {/* Main Form Area */}
       <div className="px-6 pt-6 pb-2 z-10 flex-1 flex flex-col justify-start">
         {/* Logo */}
-        <div className="mb-3">
+        <div className="mb-3 flex justify-center">
           <MeatGharLogo variant="red" size="md" showTagline={true} />
         </div>
 
         {/* Headings */}
-        <div className="text-left mt-1 mb-5">
+        <div className="text-left mt-1 mb-4">
           <h2
             className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight mb-1"
             style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif" }}
@@ -68,28 +69,15 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
         >
           {/* Phone Input Box with India flag (rounded-8px) */}
           <div className="relative">
-            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
               Mobile Number <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden focus-within:border-[#A8071A] focus-within:ring-2 focus-within:ring-red-500/20 transition-all bg-slate-50/50">
-              {/* Indian Flag Box with rounded-[8px] border radius */}
-              <div className="flex items-center gap-1.5 px-3 py-3 bg-slate-100/90 border-r border-slate-300 text-xs font-extrabold text-slate-700 shrink-0">
-                <div className="w-6 h-4 rounded-[3px] overflow-hidden shadow-2xs border border-slate-300 flex flex-col shrink-0 relative bg-white">
-                  {/* Saffron */}
-                  <div className="h-1.5 bg-[#FF9933] w-full" />
-                  {/* White with Chakra */}
-                  <div className="h-1.5 bg-white w-full flex items-center justify-center relative">
-                    <div className="w-1.5 h-1.5 rounded-full border border-[#000080] flex items-center justify-center">
-                      <div className="w-0.5 h-0.5 bg-[#000080] rounded-full" />
-                    </div>
-                  </div>
-                  {/* Green */}
-                  <div className="h-1.5 bg-[#138808] w-full" />
-                </div>
+            <div className="relative flex items-center">
+              <div className="absolute left-3 flex items-center gap-1 text-slate-700 font-semibold text-xs pointer-events-none z-10">
+                <span className="text-sm">🇮🇳</span>
                 <span>+91</span>
+                <span className="text-slate-300 ml-1">|</span>
               </div>
-
-              {/* Number Input */}
               <input
                 type="tel"
                 name="user_phone_no_autofill"
@@ -101,27 +89,32 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
                 data-1p-ignore="true"
                 data-form-type="other"
                 value={phoneNumber}
-                onChange={(e) => {
-                  setPhoneNumber(e.target.value);
-                  if (errorMsg) setErrorMsg('');
-                }}
-                placeholder="98765 43210"
-                className="w-full px-3 py-3 text-sm font-semibold text-slate-800 placeholder-slate-400 bg-transparent outline-none"
-                maxLength={14}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="Enter 10 digit number"
+                className="w-full pl-20 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
               />
             </div>
           </div>
 
-          {/* Password Input */}
+          {/* Password Input Box */}
           <div className="relative">
-            <label className="text-[10px] font-bold text-slate-500 block mb-1">
-              Password <span className="text-red-500">*</span>
-            </label>
-            <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden focus-within:border-[#A8071A] focus-within:ring-2 focus-within:ring-red-500/20 transition-all bg-slate-50/50 px-3 py-3">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-700">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => alert('OTP / Reset link sent to your registered mobile')}
+                className="text-[11px] font-bold text-[#A8071A] hover:underline"
+              >
+                Forgot?
+              </button>
+            </div>
+            <div className="relative flex items-center">
               <input
                 type={showPassword ? 'text' : 'password'}
-                name="user_pass_no_autofill"
-                autoComplete="new-password"
+                name="user_password_no_autofill"
+                autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -129,43 +122,36 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
                 data-1p-ignore="true"
                 data-form-type="other"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errorMsg) setErrorMsg('');
-                }}
-                placeholder="Enter password"
-                className="w-full text-sm font-semibold text-slate-800 placeholder-slate-400 bg-transparent outline-none"
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="p-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                title="View Password"
+                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          {/* Error Message */}
-          {errorMsg && (
-            <p className="text-xs text-red-600 font-medium ml-1">{errorMsg}</p>
-          )}
+          {errorMsg && <p className="text-xs text-red-600 font-semibold">{errorMsg}</p>}
 
-          {/* LOGIN Button */}
+          {/* Primary Action Button (Brand Red, rounded-12px) */}
           <button
             type="submit"
-            className="w-full py-3.5 px-6 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white font-black text-sm sm:text-base rounded-xl shadow-md shadow-red-900/20 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider mt-1"
+            className="w-full py-3 px-4 bg-[#A8071A] hover:bg-[#8C0818] active:bg-[#720412] text-white font-extrabold text-sm rounded-xl shadow-md shadow-red-950/20 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mt-2"
           >
             <span>LOGIN</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 stroke-[2.5]" />
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="relative my-3 flex items-center justify-center">
+        {/* Divider with 'OR' */}
+        <div className="relative my-4 flex items-center justify-center">
           <div className="border-t border-slate-200 w-full" />
-          <span className="absolute bg-white px-3 text-[10px] font-bold text-slate-400 tracking-wider">
+          <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider absolute">
             OR
           </span>
         </div>
@@ -210,13 +196,12 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
         </p>
       </div>
 
-      {/* Pinned Bottom BG.PNG Platter Graphic Banner with Smooth Top Blend */}
+      {/* Pinned Bottom BG Platter Graphic Banner with Smooth Top Blend */}
       <div className="w-full h-36 relative mt-auto overflow-hidden shrink-0">
         <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white via-white/80 to-transparent z-10 pointer-events-none" />
-        <img
-          src="/src/assets/images/bg_1790503776302.jpg"
+        <AppImage
+          src="/images/bg_1790503776302.jpg"
           alt="Meat Ghar BG"
-          referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center"
         />
       </div>

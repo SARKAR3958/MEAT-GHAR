@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { GreenTickLottie } from '../GreenTickLottie';
+import { useCart } from '../../context/CartContext';
 
 interface CheckoutScreenProps {
   onBack: () => void;
@@ -24,8 +25,11 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   onBack,
   onPlaceOrder,
 }) => {
+  const { totalAmount, subtotal } = useCart();
   const [selectedPayment, setSelectedPayment] = useState<'upi' | 'card' | 'netbanking' | 'wallet' | 'cod'>('upi');
   const [isSuccessModal, setIsSuccessModal] = useState(false);
+
+  const displayTotal = totalAmount > 0 ? totalAmount : 420;
 
   const handlePlaceOrderClick = () => {
     setIsSuccessModal(true);
@@ -35,13 +39,13 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   };
 
   return (
-    <div className="w-full h-full min-h-[780px] bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
+    <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
       {/* Top Header */}
-      <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200 shadow-2xs z-20 flex items-center justify-between">
+      <div className="shrink-0 bg-white px-4 pt-3 pb-3 border-b border-slate-200 shadow-2xs z-30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-[#A8071A] transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-100 text-[#A8071A] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -52,7 +56,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 no-scrollbar pb-24">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 no-scrollbar pb-6">
         {/* Delivery Address Summary */}
         <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
@@ -220,14 +224,14 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         </div>
       </div>
 
-      {/* Fixed Bottom Place Order Button */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 z-30 shadow-2xl">
+      {/* Fixed Bottom Place Order Button (Never scrolls) */}
+      <div className="shrink-0 bg-white border-t border-slate-200 p-3 z-30 shadow-lg">
         <button
           onClick={handlePlaceOrderClick}
           className="w-full py-3.5 px-6 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-red-900/20 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
         >
           <Lock className="w-4 h-4" />
-          <span>Place Order &rarr;</span>
+          <span>Pay &amp; Place Order (₹{displayTotal}) &rarr;</span>
         </button>
       </div>
 

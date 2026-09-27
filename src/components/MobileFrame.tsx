@@ -40,9 +40,9 @@ interface MobileFrameProps {
 
 export const MobileFrame: React.FC<MobileFrameProps> = ({ children }) => {
   return (
-    <div className="w-full min-h-screen bg-white text-slate-800 flex flex-col items-center justify-start overflow-x-hidden selection:bg-red-500 selection:text-white">
-      {/* Container adapts directly to full width on mobile/tablet or clean max-w on larger displays */}
-      <div className="w-full max-w-lg min-h-screen bg-white flex flex-col relative overflow-x-hidden shadow-none md:shadow-xl border-none">
+    <div className="w-full h-[100dvh] bg-white text-slate-800 flex flex-col items-center justify-start overflow-hidden select-none">
+      {/* Container adapts directly to full width & full viewport height without any bottom whitespace */}
+      <div className="w-full max-w-lg h-full bg-white flex flex-col relative overflow-hidden shadow-none md:shadow-xl border-none">
         {children}
       </div>
     </div>

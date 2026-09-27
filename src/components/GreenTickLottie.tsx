@@ -5,11 +5,13 @@ import { Check } from 'lucide-react';
 interface GreenTickLottieProps {
   className?: string;
   size?: number;
+  loop?: boolean;
 }
 
 export const GreenTickLottie: React.FC<GreenTickLottieProps> = ({
   className = 'w-16 h-16',
   size = 64,
+  loop = true,
 }) => {
   return (
     <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>

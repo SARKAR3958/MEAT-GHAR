@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { ALL_PRODUCTS, CategoryProduct } from './CategoryListScreen';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
+import { AppImage } from '../common/AppImage';
+import { useCart } from '../../context/CartContext';
 
 interface SearchScreenProps {
   onBack: () => void;
@@ -27,6 +29,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   onSelectProduct,
   onNavigateTab,
 }) => {
+  const { cartCount, addToCart, updateQuantity, getItemQuantity } = useCart();
   const [searchTerm, setSearchTerm] = useState('');
   const [recentSearches, setRecentSearches] = useState([
     'chicken',
@@ -35,8 +38,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     'eggs',
     'tikka',
   ]);
-  const [cartCount, setCartCount] = useState(0);
-  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
 
   const suggestedSearches = [
     'Chicken Curry Cut',
@@ -96,27 +97,22 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     }
   };
 
-  const handleAddQuantity = (productId: string, e: React.MouseEvent) => {
+  const handleAddQuantity = (product: CategoryProduct, e: React.MouseEvent) => {
     e.stopPropagation();
-    setProductQuantities((prev) => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1,
-    }));
-    setCartCount((prev) => prev + 1);
+    const priceNum = parseInt(product.price.replace(/[^\d]/g, ''), 10) || 400;
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: priceNum,
+      image: product.image,
+      category: product.categoryId,
+      quantity: 1,
+    });
   };
 
   const handleRemoveQuantity = (productId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setProductQuantities((prev) => {
-      const current = prev[productId] || 0;
-      if (current <= 1) {
-        const copy = { ...prev };
-        delete copy[productId];
-        return copy;
-      }
-      return { ...prev, [productId]: current - 1 };
-    });
-    setCartCount((prev) => Math.max(0, prev - 1));
+    updateQuantity(productId, -1);
   };
 
   return (
@@ -245,7 +241,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
           {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {filteredProducts.map((p) => {
-                const qty = productQuantities[p.id] || 0;
+                const qty = getItemQuantity(p.id);
 
                 return (
                   <div
@@ -256,7 +252,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                     <div>
                       {/* Product Image with Badges */}
                       <div className="w-full h-[112px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
-                        <img
+                        <AppImage
                           src={p.image}
                           alt={p.name}
                           className="w-full h-full object-cover"
@@ -298,24 +294,21 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                       <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-2 py-1">
                         <button
                           onClick={(e) => handleRemoveQuantity(p.id, e)}
-                          className="w-5 h-5 rounded-lg bg-white text-[#BA181B] font-black flex items-center justify-center shadow-2xs hover:bg-red-100"
+                          className="w-5 h-5 rounded-lg bg-white text-[#BA181B] font-black flex items-center justify-center shadow-2xs hover:bg-red-100 cursor-pointer"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
                         <span className="text-xs font-extrabold text-[#BA181B]">{qty}</span>
                         <button
-                          onClick={(e) => handleAddQuantity(p.id, e)}
-                          className="w-5 h-5 rounded-lg bg-[#BA181B] text-white font-black flex items-center justify-center shadow-2xs hover:bg-red-800"
+                          onClick={(e) => handleAddQuantity(p, e)}
+                          className="w-5 h-5 rounded-lg bg-[#BA181B] text-white font-black flex items-center justify-center shadow-2xs hover:bg-red-800 cursor-pointer"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectProduct(p.name);
-                        }}
+                        onClick={(e) => handleAddQuantity(p, e)}
                         className="w-full py-1.5 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
                       >
                         <ShoppingCart className="w-3.5 h-3.5 text-white" />

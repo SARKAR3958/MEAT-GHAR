@@ -11,22 +11,26 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
+import { AppImage } from '../common/AppImage';
+import { useCart } from '../../context/CartContext';
 
 interface ProductDetailsScreenProps {
   onBack: () => void;
-  onAddToCart: () => void;
+  onAddToCart?: () => void;
 }
 
 export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
   onBack,
   onAddToCart,
 }) => {
+  const { addToCart } = useCart();
   const [quantityKg, setQuantityKg] = useState(1);
   const [selectedCut, setSelectedCut] = useState('Curry Cut');
   const [customCutInstruction, setCustomCutInstruction] = useState('');
   const [selectedPrep, setSelectedPrep] = useState('Full Cleaned');
   const [notes, setNotes] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   const pricePerKg = 420;
   const totalPrice = Math.round(pricePerKg * quantityKg);
@@ -41,11 +45,40 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
     { id: 'Boneless', line1: 'Boneless', line2: '' },
   ];
 
+  const handleAddProductToCart = () => {
+    addToCart({
+      id: 'chicken_curry_cut',
+      name: 'Fresh Chicken Curry Cut',
+      price: totalPrice,
+      originalPrice: Math.round(totalPrice * 1.1),
+      image: '/images/chicken_curry_cut_wide_1790508282856.jpg',
+      category: 'Chicken',
+      weight: `${quantityKg} KG`,
+      cut: selectedCut === 'Custom Cut' ? `Custom: ${customCutInstruction || 'Special Cut'}` : selectedCut,
+      prep: selectedPrep,
+      quantity: 1,
+    });
+
+    setShowSuccessToast(true);
+    setTimeout(() => {
+      setShowSuccessToast(false);
+      if (onAddToCart) onAddToCart();
+    }, 900);
+  };
+
   return (
     <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
-      {/* Top Header - Fixed and non-scrolling */}
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-bounce">
+          <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
+          <span>Added {quantityKg} KG to Cart!</span>
+        </div>
+      )}
+
+      {/* 1. FIXED TOP HEADER (Never scrolls) */}
       <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200/90 shadow-2xs z-30 shrink-0 flex items-center justify-between">
-        {/* Left: Back button + Meat Ghar logo & text */}
+        {/* Left: Back button + Meat Ghar logo */}
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
@@ -53,7 +86,6 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
           >
             <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
-
           <HeaderMeatGharLogo />
         </div>
 
@@ -70,14 +102,13 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
         </div>
       </div>
 
-      {/* Main Content Area - Only this scrolls */}
-      <div className="flex-1 overflow-y-auto pb-6 no-scrollbar">
+      {/* 2. SCROLLABLE CONTENT ONLY */}
+      <div className="flex-1 overflow-y-auto pb-4 no-scrollbar">
         {/* Large Product Hero Image */}
         <div className="relative w-full aspect-16/10 bg-slate-100 overflow-hidden shadow-2xs">
-          <img
-            src="/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg"
+          <AppImage
+            src="/images/chicken_curry_cut_wide_1790508282856.jpg"
             alt="Fresh Chicken Curry Cut"
-            referrerPolicy="no-referrer"
             className="w-full h-full object-cover"
           />
           <span className="absolute top-3 left-3 bg-[#BA181B] text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md">
@@ -112,11 +143,11 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
 
             <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold mt-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>In Stock</span>
+              <span>In Stock &bull; Express 70 Min Delivery</span>
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed mt-2">
-              Fresh and tender chicken curry cut, perfect for your daily meals. 100% fresh and hygienic. Sourced from trusted farms.
+              Fresh and tender chicken curry cut, perfect for your daily curries and gravies. 100% fresh, juicy, and hygienic. Farm to fork guaranteed.
             </p>
           </div>
 
@@ -124,7 +155,7 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
             <div className="flex items-center justify-between">
               <button
-                onClick={() => setQuantityKg(Math.max(0.5, quantityKg - 0.25))}
+                onClick={() => setQuantityKg((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
                 className="w-9 h-9 rounded-xl bg-red-100/70 text-[#A8071A] flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
               >
                 <Minus className="w-4 h-4" />
@@ -136,7 +167,7 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
               </div>
 
               <button
-                onClick={() => setQuantityKg(Math.min(5, quantityKg + 0.25))}
+                onClick={() => setQuantityKg((prev) => Math.min(5, Number((prev + 0.25).toFixed(2))))}
                 className="w-9 h-9 rounded-xl bg-red-100/70 text-[#A8071A] flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -179,7 +210,7 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
               })}
             </div>
 
-            {/* Custom Cut Input (Shown when Custom Cut is selected) */}
+            {/* Custom Cut Input */}
             {selectedCut === 'Custom Cut' && (
               <div className="mt-2.5 bg-red-50/60 border border-red-200/90 rounded-xl p-2.5">
                 <label className="text-[11px] font-extrabold text-[#BA181B] block mb-1">
@@ -263,17 +294,17 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
         </div>
       </div>
 
-      {/* Fixed Bottom Action Bar */}
-      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 py-3.5 z-30 shadow-lg flex items-center justify-between">
+      {/* 3. FIXED BOTTOM ACTION BAR (Sticky & Never Scrolls) */}
+      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 py-3 z-30 shadow-lg flex items-center justify-between">
         <div>
-          <span className="text-[10px] font-semibold text-slate-400 block">Total Price</span>
+          <span className="text-[10px] font-semibold text-slate-400 block leading-tight">Total Price</span>
           <span className="text-base font-black text-[#BA181B]">
             ₹{totalPrice} <span className="text-xs font-normal text-slate-500">({quantityKg} KG)</span>
           </span>
         </div>
 
         <button
-          onClick={onAddToCart}
+          onClick={handleAddProductToCart}
           className="py-2.5 px-6 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white font-bold text-sm rounded-xl shadow-md shadow-red-900/20 transition-all flex items-center gap-2 cursor-pointer"
         >
           <ShoppingBag className="w-4 h-4" />

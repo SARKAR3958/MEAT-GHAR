@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { MeatGharLogo } from '../MeatGharLogo';
+import { AppImage } from '../common/AppImage';
 
 interface SignUpFormScreenProps {
   onSignUpSubmit: (data: {
@@ -46,12 +47,12 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
   };
 
   return (
-    <div className="w-full h-full min-h-[780px] bg-white text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
+    <div className="w-full h-full bg-white text-slate-800 flex flex-col justify-between relative overflow-y-auto no-scrollbar select-none">
       {/* Main Content Area */}
       <div className="px-6 pt-5 pb-2 z-10 flex-1 flex flex-col justify-start">
-        {/* Logo */}
-        <div className="mb-2">
-          <MeatGharLogo variant="red" size="sm" showTagline={true} />
+        {/* Logo - Matches Login Screen Exactly */}
+        <div className="mb-2 flex justify-center">
+          <MeatGharLogo variant="red" size="md" showTagline={true} />
         </div>
 
         {/* Heading */}
@@ -77,50 +78,40 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
         >
           {/* Full Name */}
           <div>
-            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+            <label className="text-[11px] font-semibold text-slate-700 block mb-1">
               Full Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              name="reg_fullname_no_autofill"
+              name="user_fullname_no_autofill"
               autoComplete="off"
               autoCorrect="off"
-              autoCapitalize="none"
+              autoCapitalize="words"
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
               data-form-type="other"
               value={fullName}
-              onChange={(e) => {
-                setFullName(e.target.value);
-                if (errorMsg) setErrorMsg('');
-              }}
-              placeholder="Rahul Sharma"
-              className="w-full px-3 py-2.5 text-xs font-semibold text-slate-800 border border-slate-300 rounded-xl bg-slate-50/50 focus:bg-white focus:border-[#A8071A] focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Rahul Sharma"
+              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
             />
           </div>
 
-          {/* Mobile Number (Full-width row) */}
+          {/* Mobile Number */}
           <div>
-            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+            <label className="text-[11px] font-semibold text-slate-700 block mb-1">
               Mobile Number <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50/50 focus-within:border-[#A8071A] focus-within:ring-2 focus-within:ring-red-500/20 transition-all">
-              {/* Indian flag icon (rounded-3px) */}
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100/90 border-r border-slate-300 text-xs font-extrabold text-slate-700 shrink-0">
-                <div className="w-5 h-3.5 rounded-[3px] overflow-hidden border border-slate-300 flex flex-col shrink-0 bg-white">
-                  <div className="h-1 bg-[#FF9933] w-full" />
-                  <div className="h-1 bg-white w-full flex items-center justify-center">
-                    <div className="w-1 h-1 rounded-full border border-[#000080]" />
-                  </div>
-                  <div className="h-1 bg-[#138808] w-full" />
-                </div>
+            <div className="relative flex items-center">
+              <div className="absolute left-3 flex items-center gap-1 text-slate-700 font-semibold text-xs pointer-events-none z-10">
+                <span className="text-sm">🇮🇳</span>
                 <span>+91</span>
+                <span className="text-slate-300 ml-1">|</span>
               </div>
-
               <input
                 type="tel"
-                name="reg_phone_no_autofill"
+                name="user_regphone_no_autofill"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
@@ -130,20 +121,20 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
                 data-form-type="other"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="98765 43210"
-                className="w-full px-3 py-2 text-xs font-semibold text-slate-800 bg-transparent outline-none"
+                placeholder="Enter 10 digit number"
+                className="w-full pl-20 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
               />
             </div>
           </div>
 
-          {/* Email Address (Full-width row) */}
+          {/* Email Address */}
           <div>
-            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+            <label className="text-[11px] font-semibold text-slate-700 block mb-1">
               Email Address
             </label>
             <input
               type="email"
-              name="reg_email_no_autofill"
+              name="user_regemail_no_autofill"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
@@ -153,23 +144,22 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
               data-form-type="other"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="rahul@example.com"
-              className="w-full px-3 py-2.5 text-xs font-semibold text-slate-800 border border-slate-300 rounded-xl bg-slate-50/50 focus:bg-white focus:border-[#A8071A] outline-none transition-all"
+              placeholder="e.g. rahul@example.com"
+              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
             />
           </div>
 
-          {/* Password & Confirm Password (2 inputs per row) */}
+          {/* Password & Confirm Password in 2 columns */}
           <div className="grid grid-cols-2 gap-2">
-            {/* Password */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 block mb-1">
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">
                 Password <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50/50 focus-within:border-[#A8071A] focus-within:ring-2 focus-within:ring-red-500/20 transition-all px-2.5 py-2">
+              <div className="relative flex items-center">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  name="reg_pass_no_autofill"
-                  autoComplete="new-password"
+                  name="user_newpass_no_autofill"
+                  autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -179,29 +169,27 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full text-xs font-semibold text-slate-800 bg-transparent outline-none"
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  title="View Password"
+                  className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 block mb-1">
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">
                 Confirm Password <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50/50 focus-within:border-[#A8071A] focus-within:ring-2 focus-within:ring-red-500/20 transition-all px-2.5 py-2">
+              <div className="relative flex items-center">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
-                  name="reg_confirm_pass_no_autofill"
-                  autoComplete="new-password"
+                  name="user_confirmpass_no_autofill"
+                  autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -211,13 +199,12 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm"
-                  className="w-full text-xs font-semibold text-slate-800 bg-transparent outline-none"
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  title="View Password"
+                  className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                 >
                   {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -225,45 +212,54 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
             </div>
           </div>
 
-          {/* Error Message */}
-          {errorMsg && (
-            <p className="text-xs text-red-600 font-medium ml-1">{errorMsg}</p>
-          )}
+          {errorMsg && <p className="text-xs text-red-600 font-semibold">{errorMsg}</p>}
 
-          {/* CREATE ACCOUNT Button */}
+          {/* Primary Action Button */}
           <button
             type="submit"
-            className="w-full py-3 px-6 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white font-black text-xs sm:text-sm rounded-xl shadow-md shadow-red-900/20 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider mt-1"
+            className="w-full py-2.5 px-4 bg-[#A8071A] hover:bg-[#8C0818] active:bg-[#720412] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-red-950/20 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mt-1"
           >
             <span>CREATE ACCOUNT</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 stroke-[2.5]" />
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="relative my-2.5 flex items-center justify-center">
+        {/* Divider with 'OR' */}
+        <div className="relative my-3 flex items-center justify-center">
           <div className="border-t border-slate-200 w-full" />
-          <span className="absolute bg-white px-3 text-[10px] font-bold text-slate-400 tracking-wider">
+          <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider absolute">
             OR
           </span>
         </div>
 
-        {/* Google Login Button - Identical size to Login screen */}
+        {/* Google Login Button */}
         <button
           type="button"
           onClick={onGoogleLogin}
-          className="w-full py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs sm:text-sm rounded-xl shadow-2xs transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer"
+          className="w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            />
           </svg>
           <span>Continue with Google</span>
         </button>
 
-        {/* Already have an account? Login */}
+        {/* Already have an account? Login Link */}
         <p className="text-center text-xs text-slate-500 mt-2 font-medium">
           Already have an account?{' '}
           <button
@@ -275,13 +271,12 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
         </p>
       </div>
 
-      {/* Pinned Bottom BG.PNG Platter Graphic Banner with Smooth Top Blend */}
-      <div className="w-full h-32 relative mt-auto overflow-hidden shrink-0">
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white via-white/80 to-transparent z-10 pointer-events-none" />
-        <img
-          src="/src/assets/images/bg_1790503776302.jpg"
+      {/* Pinned Bottom BG Platter Graphic Banner with Smooth Top Blend */}
+      <div className="w-full h-28 relative mt-auto overflow-hidden shrink-0">
+        <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white via-white/80 to-transparent z-10 pointer-events-none" />
+        <AppImage
+          src="/images/bg_1790503776302.jpg"
           alt="Meat Ghar BG"
-          referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center"
         />
       </div>
