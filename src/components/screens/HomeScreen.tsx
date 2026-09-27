@@ -88,32 +88,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="w-full h-full min-h-[780px] bg-white text-slate-800 flex flex-col justify-between relative overflow-hidden select-none font-sans">
-      {/* 1. TOP ANDROID-STYLE STATUS BAR */}
-      <div className="w-full px-5 pt-3 pb-1 flex items-center justify-between text-xs font-semibold text-slate-900 bg-white z-30">
-        <span className="font-bold tracking-tight text-[13px]">9:41</span>
-        <div className="flex items-center gap-1.5">
-          {/* Signal Bars */}
-          <svg className="w-4 h-3 text-slate-900" viewBox="0 0 16 12" fill="currentColor">
-            <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
-            <rect x="4" y="5.5" width="2.5" height="6.5" rx="0.5" />
-            <rect x="8" y="3" width="2.5" height="9" rx="0.5" />
-            <rect x="12" y="0" width="2.5" height="12" rx="0.5" />
-          </svg>
-          {/* Wi-Fi Icon */}
-          <svg className="w-3.5 h-3 text-slate-900" viewBox="0 0 16 12" fill="currentColor">
-            <path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 5a5 5 0 00-3.536 1.464.75.75 0 101.06 1.072A3.5 3.5 0 018 6.5a3.5 3.5 0 012.476 1.036.75.75 0 001.06-1.072A5 5 0 008 5zM8 0a10 10 0 00-7.071 2.929.75.75 0 101.06 1.06 8.5 8.5 0 0112.022 0 .75.75 0 101.06-1.06A10 10 0 008 0z" />
-          </svg>
-          {/* Battery Icon & 100% */}
-          <span className="text-[11px] font-bold text-slate-900 ml-0.5">100%</span>
-          <div className="w-5 h-2.5 rounded-[3px] border border-slate-900 p-[1px] flex items-center relative">
-            <div className="w-full h-full bg-slate-900 rounded-[1.5px]" />
-            <div className="w-0.5 h-1 bg-slate-900 absolute -right-1 top-0.5 rounded-r-[1px]" />
-          </div>
-        </div>
-      </div>
-
       {/* 2. HEADER: Left = Meat Ghar Logo (top) + Meat Ghar (bottom, no tagline), Middle = Location, Right = Notification */}
-      <div className="bg-white px-4 pt-1.5 pb-2 z-20 flex items-center justify-between gap-2">
+      <div className="bg-white px-4 pt-3 pb-2 z-20 flex items-center justify-between gap-2">
         {/* Left: MEAT GHAR with logo on top (no tagline) */}
         <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
 

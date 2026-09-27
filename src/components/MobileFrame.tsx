@@ -208,25 +208,14 @@ export const MobileFrame: React.FC<MobileFrameProps> = ({
       {/* Main Viewport Container */}
       <main className="flex-1 w-full flex items-center justify-center py-4 sm:py-8 px-2 sm:px-4">
         {isFrameEnabled ? (
-          /* Smartphone Device Frame Mockup */
-          <div className="relative w-full max-w-[400px] h-[840px] bg-slate-950 rounded-[48px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border-4 border-slate-700/80 ring-1 ring-slate-600/30 flex flex-col overflow-hidden transition-all duration-300">
-            {/* Top Dynamic Island / Speaker Notch */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-6 bg-slate-950 rounded-b-2xl z-40 flex items-center justify-center gap-2 border-b border-slate-800/50">
-              <div className="w-3 h-3 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
-              </div>
-              <div className="w-12 h-1 rounded-full bg-slate-800" />
-            </div>
-
-            {/* Phone Outer Glass Body */}
-            <div className="relative w-full h-full bg-white rounded-[38px] overflow-hidden flex flex-col shadow-inner">
+          /* Modern Clean Smartphone Preview */
+          <div className="relative w-full max-w-[400px] h-[840px] bg-slate-950 rounded-[44px] p-2.5 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border-2 border-slate-700/80 ring-1 ring-slate-600/30 flex flex-col overflow-hidden transition-all duration-300">
+            {/* Phone Outer Body */}
+            <div className="relative w-full h-full bg-white rounded-[34px] overflow-hidden flex flex-col shadow-inner">
               {/* Phone Content Canvas */}
               <div className="w-full h-full flex flex-col overflow-hidden relative">
                 {children}
               </div>
-
-              {/* Bottom iOS Home Bar Indicator */}
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-900/30 rounded-full z-40 pointer-events-none" />
             </div>
           </div>
         ) : (

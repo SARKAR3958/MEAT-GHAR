@@ -37,30 +37,8 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
 
   return (
     <div className="w-full h-full min-h-[780px] bg-white text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
-      {/* Phone Top Status Bar Mock */}
-      <div className="w-full px-6 pt-3 pb-2 flex items-center justify-between text-xs font-semibold text-slate-800">
-        <span>9:41</span>
-        <div className="flex items-center gap-1.5">
-          {/* Signal */}
-          <svg className="w-4 h-3 text-slate-800" viewBox="0 0 16 12" fill="currentColor">
-            <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
-            <rect x="4" y="6" width="2.5" height="6" rx="0.5" />
-            <rect x="8" y="3" width="2.5" height="9" rx="0.5" />
-            <rect x="12" y="0" width="2.5" height="12" rx="0.5" />
-          </svg>
-          {/* Wifi */}
-          <svg className="w-3.5 h-3 text-slate-800" viewBox="0 0 16 12" fill="currentColor">
-            <path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 5a5 5 0 00-3.536 1.464.75.75 0 101.06 1.072A3.5 3.5 0 018 6.5a3.5 3.5 0 012.476 1.036.75.75 0 001.06-1.072A5 5 0 008 5zM8 0a10 10 0 00-7.071 2.929.75.75 0 101.06 1.06 8.5 8.5 0 0112.022 0 .75.75 0 101.06-1.06A10 10 0 008 0z" />
-          </svg>
-          {/* Battery */}
-          <div className="w-5 h-2.5 rounded-sm border border-slate-800 p-0.5 flex items-center">
-            <div className="w-full h-full bg-slate-800 rounded-2xs" />
-          </div>
-        </div>
-      </div>
-
       {/* Main Form Area */}
-      <div className="px-6 pt-3 pb-2 z-10 flex-1 flex flex-col justify-start">
+      <div className="px-6 pt-6 pb-2 z-10 flex-1 flex flex-col justify-start">
         {/* Logo */}
         <div className="mb-3">
           <MeatGharLogo variant="red" size="md" showTagline={true} />
