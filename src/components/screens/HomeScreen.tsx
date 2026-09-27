@@ -16,6 +16,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import { MeatGharLogo, HeaderMeatGharLogo } from '../MeatGharLogo';
+import { AppImage } from '../common/AppImage';
 
 interface HomeScreenProps {
   onNavigateTab: (tab: string, categoryName?: string) => void;
@@ -194,8 +195,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Right Fresh Meat Photography with Cutting Board & Fresh & Safe Badge */}
             <div className="absolute top-0 right-0 w-[48%] h-full pointer-events-none overflow-hidden">
-              <img
-                src="/src/assets/images/hero_banner_meat_1790507616083.jpg"
+              <AppImage
+                src="/images/hero_banner_meat_1790507616083.jpg"
                 alt="Fresh Raw Steaks on Board"
                 className="w-full h-full object-cover object-center"
               />
@@ -244,7 +245,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               >
                 {/* Circular light pink/cream frame - enlarged to 60px */}
                 <div className="w-[60px] h-[60px] rounded-full bg-[#FDF2F2] border border-[#FEE2E2] p-1 shadow-2xs overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
-                  <img
+                  <AppImage
                     src={c.image}
                     alt={c.name}
                     className="w-full h-full object-cover rounded-full"
@@ -282,7 +283,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div>
                   {/* Image with discount & fresh badges */}
                   <div className="w-full h-[122px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
-                    <img
+                    <AppImage
                       src={p.image}
                       alt={p.name}
                       className="w-full h-full object-cover"
@@ -364,8 +365,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </span>
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-[45%] pointer-events-none">
-                <img
-                  src="/src/assets/images/offer_chicken_card_1790507696774.jpg"
+                <AppImage
+                  src="/images/offer_chicken_card_1790507696774.jpg"
                   alt="Fresh Chicken Offer"
                   className="w-full h-full object-cover object-center"
                 />
@@ -389,8 +390,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </span>
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-[45%] pointer-events-none">
-                <img
-                  src="/src/assets/images/offer_mutton_card_1790507713635.jpg"
+                <AppImage
+                  src="/images/offer_mutton_card_1790507713635.jpg"
                   alt="Mutton Deal"
                   className="w-full h-full object-cover object-center"
                 />

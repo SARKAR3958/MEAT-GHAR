@@ -1,74 +1,95 @@
 /**
- * Utility to preload and cache all application images in advance
- * Ensures instant, flicker-free rendering across all screens during demo.
+ * Ultra-Fast High-Priority Preloader for all Meat Ghar image assets.
+ * Executes during initial boot & 4-second splash screen so all images render instantly.
  */
 
-// Eagerly resolve all local image assets through Vite
-const imageModules = import.meta.glob<{ default: string }>('/src/assets/images/*.jpg', {
+// Eagerly resolve all local image assets through Vite's bundler
+const viteImageModules = import.meta.glob<{ default: string }>('/src/assets/images/*.(jpg|jpeg|png|webp)', {
   eager: true,
 });
 
-// Explicit list of known paths to guarantee resolution in all dev/prod environments
-const imagePaths: string[] = [
-  '/src/assets/images/bg_1790503776302.jpg',
-  '/src/assets/images/cat_chicken_1790504356265.jpg',
-  '/src/assets/images/cat_cold_cuts_1790508827963.jpg',
-  '/src/assets/images/cat_eggs_1790504403080.jpg',
-  '/src/assets/images/cat_fish_1790504389877.jpg',
-  '/src/assets/images/cat_mutton_1790504374485.jpg',
-  '/src/assets/images/cat_prawns_seafood_1790508815698.jpg',
-  '/src/assets/images/cat_ready_to_cook_1790507566251.jpg',
-  '/src/assets/images/cat_special_cuts_1790507586236.jpg',
-  '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg',
-  '/src/assets/images/curry_cut_chicken_1790507633294.jpg',
-  '/src/assets/images/delivery_partner_avatar_1790502025354.jpg',
-  '/src/assets/images/hero_banner_meat_1790507616083.jpg',
-  '/src/assets/images/map_delivery_illustration_1790502010289.jpg',
-  '/src/assets/images/meat_bottom_platter_1790501395172.jpg',
-  '/src/assets/images/meat_delivery_70_1790501379469.jpg',
-  '/src/assets/images/meat_onboarding_1_1790501345494.jpg',
-  '/src/assets/images/meat_onboarding_2_1790501365087.jpg',
-  '/src/assets/images/mutton_boneless_cubes_1790507651522.jpg',
-  '/src/assets/images/mutton_boneless_wide_1790508301717.jpg',
-  '/src/assets/images/offer_chicken_card_1790507696774.jpg',
-  '/src/assets/images/offer_mutton_card_1790507713635.jpg',
-  '/src/assets/images/product_rohu_fish_1790507600370.jpg',
-  '/src/assets/images/rohu_fish_wide_1790508321588.jpg',
+const allImageFilenames: string[] = [
+  'bg_1790503776302.jpg',
+  'cat_chicken_1790504356265.jpg',
+  'cat_cold_cuts_1790508827963.jpg',
+  'cat_eggs_1790504403080.jpg',
+  'cat_fish_1790504389877.jpg',
+  'cat_mutton_1790504374485.jpg',
+  'cat_prawns_seafood_1790508815698.jpg',
+  'cat_ready_to_cook_1790507566251.jpg',
+  'cat_special_cuts_1790507586236.jpg',
+  'chicken_curry_cut_wide_1790508282856.jpg',
+  'curry_cut_chicken_1790507633294.jpg',
+  'delivery_partner_avatar_1790502025354.jpg',
+  'hero_banner_meat_1790507616083.jpg',
+  'map_delivery_illustration_1790502010289.jpg',
+  'meat_bottom_platter_1790501395172.jpg',
+  'meat_delivery_70_1790501379469.jpg',
+  'meat_onboarding_1_1790501345494.jpg',
+  'meat_onboarding_2_1790501365087.jpg',
+  'mutton_boneless_cubes_1790507651522.jpg',
+  'mutton_boneless_wide_1790508301717.jpg',
+  'offer_chicken_card_1790507696774.jpg',
+  'offer_mutton_card_1790507713635.jpg',
+  'product_rohu_fish_1790507600370.jpg',
+  'rohu_fish_wide_1790508321588.jpg',
 ];
 
-const cachedImages: HTMLImageElement[] = [];
+const inMemoryImageCache = new Map<string, HTMLImageElement>();
 
-export function preloadAllImages(): void {
+export async function preloadAllImages(): Promise<void> {
   if (typeof window === 'undefined') return;
 
   const urlsToPreload = new Set<string>();
 
-  // Add Vite resolved URLs
-  Object.values(imageModules).forEach((mod) => {
+  // 1. Vite Hashed Asset URLs
+  Object.values(viteImageModules).forEach((mod) => {
     if (mod && mod.default) {
       urlsToPreload.add(mod.default);
     }
   });
 
-  // Add explicit path URLs
-  imagePaths.forEach((path) => urlsToPreload.add(path));
-
-  urlsToPreload.forEach((src) => {
-    try {
-      const img = new Image();
-      img.src = src;
-      // Pre-decode so there is no decode stutter when navigating
-      if ('decode' in img && typeof img.decode === 'function') {
-        img.decode().catch(() => {
-          // Ignore decode errors for preloaded assets
-        });
-      }
-      cachedImages.push(img);
-    } catch {
-      // Ignore preload errors gracefully
-    }
+  // 2. Direct public paths
+  allImageFilenames.forEach((filename) => {
+    urlsToPreload.add(`/images/${filename}`);
+    urlsToPreload.add(`/assets/images/${filename}`);
+    urlsToPreload.add(`/src/assets/images/${filename}`);
   });
+
+  // Load and decode in parallel
+  const promises = Array.from(urlsToPreload).map((url) => {
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.src = url;
+      img.loading = 'eager';
+
+      if ('decode' in img && typeof img.decode === 'function') {
+        img
+          .decode()
+          .then(() => {
+            inMemoryImageCache.set(url, img);
+            resolve();
+          })
+          .catch(() => {
+            // Ignore decode failure and resolve to continue
+            resolve();
+          });
+      } else {
+        img.onload = () => {
+          inMemoryImageCache.set(url, img);
+          resolve();
+        };
+        img.onerror = () => resolve();
+      }
+    });
+  });
+
+  try {
+    await Promise.allSettled(promises);
+  } catch {
+    // Ignore any global preload error
+  }
 }
 
-// Automatically invoke on import so caching begins immediately
+// Immediately trigger background preload on bundle load
 preloadAllImages();
