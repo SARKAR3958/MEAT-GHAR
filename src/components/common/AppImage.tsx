@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { getImageUrl } from '../../utils/imageAssets';
+import React, { useState, useEffect } from 'react';
+import { getImageUrl, STATIC_IMAGES } from '../../utils/imageAssets';
 
 interface AppImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -15,29 +15,45 @@ export const AppImage: React.FC<AppImageProps> = ({
   fallbackSrc,
   ...props
 }) => {
-  const resolvedSrc = getImageUrl(src);
-  const [currentSrc, setCurrentSrc] = useState<string>(resolvedSrc);
-  const [hasError, setHasError] = useState<boolean>(false);
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const initialUrl = getImageUrl(src);
+  const [currentSrc, setCurrentSrc] = useState<string>(initialUrl || src);
+  const [attempt, setAttempt] = useState<number>(0);
+
+  useEffect(() => {
+    const nextUrl = getImageUrl(src);
+    setCurrentSrc(nextUrl || src);
+    setAttempt(0);
+  }, [src]);
 
   const handleError = () => {
-    // If resolvedSrc failed, try fallback paths
-    const filename = src.split('/').pop();
-    if (!hasError && filename) {
+    const filename = src.split('/').pop()?.split('?')[0];
+
+    if (attempt === 0 && filename && STATIC_IMAGES[filename]) {
+      setAttempt(1);
+      setCurrentSrc(STATIC_IMAGES[filename]);
+      return;
+    }
+
+    if (attempt <= 1 && filename) {
+      setAttempt(2);
       if (currentSrc !== `/images/${filename}`) {
         setCurrentSrc(`/images/${filename}`);
         return;
       }
+    }
+
+    if (attempt <= 2 && filename) {
+      setAttempt(3);
       if (currentSrc !== `/assets/images/${filename}`) {
         setCurrentSrc(`/assets/images/${filename}`);
         return;
       }
-      if (fallbackSrc) {
-        setCurrentSrc(fallbackSrc);
-        return;
-      }
     }
-    setHasError(true);
+
+    if (fallbackSrc && currentSrc !== fallbackSrc) {
+      setAttempt(4);
+      setCurrentSrc(fallbackSrc);
+    }
   };
 
   return (
@@ -47,8 +63,7 @@ export const AppImage: React.FC<AppImageProps> = ({
       loading="eager"
       decoding="async"
       onError={handleError}
-      onLoad={() => setIsLoaded(true)}
-      className={`${className} ${!isLoaded ? 'bg-slate-100' : ''} transition-opacity duration-200`}
+      className={className}
       {...props}
     />
   );
