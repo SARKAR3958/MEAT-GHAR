@@ -1,0 +1,6 @@
+{
+  "name": "Meat Ghar",
+  "description": "Fresh Meat. Fast Delivery. Order fresh cuts, mutton, chicken, and steaks delivered in 70 minutes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
