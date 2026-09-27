@@ -37,7 +37,7 @@ import { MeatGharLogo } from './components/MeatGharLogo';
 import { RotateCcw } from 'lucide-react';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>('splash');
   const [phoneNumber, setPhoneNumber] = useState('98765 43210');
   const [userName, setUserName] = useState('Rahul Sharma');
   const [userEmail, setUserEmail] = useState('rahul.sharma@example.com');
@@ -57,11 +57,27 @@ export default function App() {
   });
 
   // Track screen navigation history stack for Android hardware/navigation bar back button
-  const historyStackRef = useRef<ScreenType[]>(['home']);
+  const historyStackRef = useRef<ScreenType[]>(['splash']);
   const lastBackPressTimeRef = useRef<number>(0);
   const toastTimeoutRef = useRef<number | null>(null);
   const [showExitToast, setShowExitToast] = useState(false);
   const [isAppExited, setIsAppExited] = useState(false);
+
+  // Load saved user profile from localStorage if exists
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('meatghar_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.userName) setUserName(parsed.userName);
+        if (parsed.phone) setPhoneNumber(parsed.phone);
+        if (parsed.email) setUserEmail(parsed.email);
+        if (parsed.authMethod) setAuthMethod(parsed.authMethod);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Native app exit handler
   const handleExitApp = useCallback(() => {
@@ -306,7 +322,12 @@ export default function App() {
         >
           {/* Screen 01: Splash */}
           {currentScreen === 'splash' && (
-            <SplashScreen onNext={() => navigateScreen('onboarding1')} />
+            <SplashScreen
+              onNext={() => {
+                historyStackRef.current = ['signup'];
+                navigateScreen('signup');
+              }}
+            />
           )}
 
           {/* Screen 02: Onboarding 1 */}
@@ -339,15 +360,47 @@ export default function App() {
               phoneNumber={phoneNumber}
               setPhoneNumber={setPhoneNumber}
               onLoginSubmit={(phone) => {
+                const uName = phone.slice(-4) ? `Customer ${phone.slice(-4)}` : 'Customer';
                 setPhoneNumber(phone);
+                setUserName(uName);
                 setAuthMethod('manual');
-                navigateScreen('location_perm');
+                try {
+                  localStorage.setItem(
+                    'meatghar_user',
+                    JSON.stringify({
+                      phone,
+                      userName: uName,
+                      email: `${phone.replace(/\s+/g, '')}@meatghar.in`,
+                      authMethod: 'manual',
+                      isLoggedIn: true,
+                      loginTime: new Date().toISOString(),
+                    })
+                  );
+                } catch {
+                  // ignore
+                }
+                historyStackRef.current = ['home'];
+                navigateScreen('home');
               }}
               onGoogleLogin={() => {
+                const gUser = {
+                  phone: phoneNumber || '9876543210',
+                  userName: 'Rahul Sharma',
+                  email: 'rahul.google@gmail.com',
+                  authMethod: 'google',
+                  isLoggedIn: true,
+                  loginTime: new Date().toISOString(),
+                };
                 setAuthMethod('google');
-                setUserName('Rahul (Google)');
+                setUserName('Rahul Sharma');
                 setUserEmail('rahul.google@gmail.com');
-                navigateScreen('location_perm');
+                try {
+                  localStorage.setItem('meatghar_user', JSON.stringify(gUser));
+                } catch {
+                  // ignore
+                }
+                historyStackRef.current = ['home'];
+                navigateScreen('home');
               }}
               onGoToSignUp={() => navigateScreen('signup_form')}
             />
@@ -357,16 +410,50 @@ export default function App() {
           {currentScreen === 'signup_form' && (
             <SignUpFormScreen
               onSignUpSubmit={(data) => {
-                setUserName(data.fullName);
-                setPhoneNumber(data.phone);
+                const uName = data.fullName || 'Customer';
+                const uPhone = data.phone || phoneNumber;
+                const uEmail = data.email || `${uPhone}@meatghar.in`;
+                setUserName(uName);
+                setPhoneNumber(uPhone);
+                setUserEmail(uEmail);
                 setAuthMethod('manual');
-                navigateScreen('location_perm');
+                try {
+                  localStorage.setItem(
+                    'meatghar_user',
+                    JSON.stringify({
+                      userName: uName,
+                      phone: uPhone,
+                      email: uEmail,
+                      authMethod: 'manual',
+                      isLoggedIn: true,
+                      loginTime: new Date().toISOString(),
+                    })
+                  );
+                } catch {
+                  // ignore
+                }
+                historyStackRef.current = ['home'];
+                navigateScreen('home');
               }}
               onGoogleLogin={() => {
+                const gUser = {
+                  phone: phoneNumber || '9876543210',
+                  userName: 'Rahul Sharma',
+                  email: 'rahul.google@gmail.com',
+                  authMethod: 'google',
+                  isLoggedIn: true,
+                  loginTime: new Date().toISOString(),
+                };
                 setAuthMethod('google');
-                setUserName('Rahul (Google)');
+                setUserName('Rahul Sharma');
                 setUserEmail('rahul.google@gmail.com');
-                navigateScreen('location_perm');
+                try {
+                  localStorage.setItem('meatghar_user', JSON.stringify(gUser));
+                } catch {
+                  // ignore
+                }
+                historyStackRef.current = ['home'];
+                navigateScreen('home');
               }}
               onGoToLogin={() => navigateScreen('signup')}
             />

@@ -27,7 +27,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectProduct,
 }) => {
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-  const [cartCount, setCartCount] = useState(2);
+  const [cartCount, setCartCount] = useState(0);
   const [notificationCount] = useState(3);
   const [searchVal, setSearchVal] = useState('');
 

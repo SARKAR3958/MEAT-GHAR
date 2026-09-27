@@ -515,7 +515,7 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
   onNavigateTab,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
-  const [cartCount, setCartCount] = useState(2);
+  const [cartCount, setCartCount] = useState(0);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {

@@ -35,7 +35,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     'eggs',
     'tikka',
   ]);
-  const [cartCount, setCartCount] = useState(2);
+  const [cartCount, setCartCount] = useState(0);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
 
   const suggestedSearches = [

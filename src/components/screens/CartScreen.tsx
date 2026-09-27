@@ -64,8 +64,8 @@ export const CartScreen: React.FC<CartScreenProps> = ({
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
-  const [item1Qty, setItem1Qty] = useState(1);
-  const [item2Qty, setItem2Qty] = useState(1);
+  const [item1Qty, setItem1Qty] = useState(0);
+  const [item2Qty, setItem2Qty] = useState(0);
 
   return (
     <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none font-sans">
