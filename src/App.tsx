@@ -33,6 +33,8 @@ import { CouponsScreen } from './components/screens/CouponsScreen';
 import { EditProfileScreen } from './components/screens/EditProfileScreen';
 import { LocationData } from './types/location';
 import { preloadAllImages } from './utils/preloadAssets';
+import { MeatGharLogo } from './components/MeatGharLogo';
+import { RotateCcw } from 'lucide-react';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
@@ -56,6 +58,70 @@ export default function App() {
 
   // Track screen navigation history stack for Android hardware/navigation bar back button
   const historyStackRef = useRef<ScreenType[]>(['home']);
+  const lastBackPressTimeRef = useRef<number>(0);
+  const toastTimeoutRef = useRef<number | null>(null);
+  const [showExitToast, setShowExitToast] = useState(false);
+  const [isAppExited, setIsAppExited] = useState(false);
+
+  // Native app exit handler
+  const handleExitApp = useCallback(() => {
+    // 1. Try Android Capacitor App exit
+    try {
+      if ((window as any).Capacitor?.Plugins?.App?.exitApp) {
+        (window as any).Capacitor.Plugins.App.exitApp();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Try Cordova Android App exit
+    try {
+      if ((navigator as any).app?.exitApp) {
+        (navigator as any).app.exitApp();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Try standard window close or show clean standby screen
+    try {
+      window.close();
+    } catch {
+      // ignore
+    }
+
+    setIsAppExited(true);
+  }, []);
+
+  // Root back press handler (Double tap to exit)
+  const handleRootBack = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastPress = now - lastBackPressTimeRef.current;
+
+    if (timeSinceLastPress < 2000) {
+      // Second press within 2 seconds: Exit App!
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      setShowExitToast(false);
+      handleExitApp();
+    } else {
+      // First press: show toast
+      lastBackPressTimeRef.current = now;
+      setShowExitToast(true);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setShowExitToast(false);
+      }, 2000);
+
+      // Re-push home state so browser doesn't exit prematurely on 1st tap
+      try {
+        window.history.pushState({ screen: 'home' }, '');
+      } catch {
+        // ignore
+      }
+    }
+  }, [handleExitApp]);
 
   const navigateScreen = useCallback((nextScreen: ScreenType) => {
     if (nextScreen === currentScreen) return;
@@ -69,12 +135,14 @@ export default function App() {
   }, [currentScreen]);
 
   const goBack = useCallback(() => {
-    if (window.history.length > 1 && historyStackRef.current.length > 1) {
+    if (historyStackRef.current.length > 1) {
       window.history.back();
-    } else {
+    } else if (currentScreen !== 'home') {
       navigateScreen('home');
+    } else {
+      handleRootBack();
     }
-  }, [navigateScreen]);
+  }, [currentScreen, handleRootBack, navigateScreen]);
 
   useEffect(() => {
     preloadAllImages();
@@ -86,7 +154,7 @@ export default function App() {
       // ignore
     }
 
-    // Handle browser / Android system navigation bar back button
+    // Handle browser / Android system navigation bar back button & swipe back
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.screen) {
         const targetScreen = event.state.screen as ScreenType;
@@ -98,7 +166,7 @@ export default function App() {
           historyStackRef.current.push(targetScreen);
         }
       } else {
-        // If history popped to root, go to previous screen from stack or home
+        // If history popped to root, check if we can step back or we are on home
         if (historyStackRef.current.length > 1) {
           historyStackRef.current.pop();
           const prevScreen = historyStackRef.current[historyStackRef.current.length - 1];
@@ -108,13 +176,16 @@ export default function App() {
           } catch {
             // ignore
           }
-        } else {
+        } else if (currentScreen !== 'home') {
           setCurrentScreen('home');
           try {
             window.history.pushState({ screen: 'home' }, '');
           } catch {
             // ignore
           }
+        } else {
+          // Already on Home screen: trigger double-back-to-exit!
+          handleRootBack();
         }
       }
     };
@@ -128,6 +199,8 @@ export default function App() {
         window.history.back();
       } else if (currentScreen !== 'home') {
         navigateScreen('home');
+      } else {
+        handleRootBack();
       }
     };
     document.addEventListener('backbutton', handleAndroidBackButton);
@@ -135,8 +208,9 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
       document.removeEventListener('backbutton', handleAndroidBackButton);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
-  }, [currentScreen, navigateScreen]);
+  }, [currentScreen, handleRootBack, navigateScreen]);
 
   // Navigation tab helper
   const handleTabNavigation = (tab: string, categoryName?: string) => {
@@ -539,6 +613,47 @@ export default function App() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Native Android-Style Double Back Exit Toast */}
+      <AnimatePresence>
+        {showExitToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none px-4 py-2 bg-slate-900/95 text-white text-[12px] font-bold rounded-full shadow-2xl backdrop-blur-md border border-white/15 flex items-center gap-2 tracking-wide whitespace-nowrap"
+          >
+            <div className="w-2 h-2 rounded-full bg-[#BA181B] animate-ping shrink-0" />
+            <span>Press back again to exit Meat Ghar</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* App Closed Standby State (for browsers/PWA when window.close() is sandbox-blocked) */}
+      {isAppExited && (
+        <div className="fixed inset-0 bg-slate-950/98 z-[10000] flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-xl">
+          <div className="w-16 h-16 rounded-2xl bg-red-950/50 border border-red-500/30 flex items-center justify-center mb-4 shadow-lg shadow-red-950/50">
+            <MeatGharLogo variant="white" size="sm" showTagline={false} />
+          </div>
+          <h2 className="text-lg font-black text-white mb-1">Meat Ghar Exited</h2>
+          <p className="text-xs text-slate-400 max-w-xs mb-6 leading-relaxed">
+            The application session was closed via device navigation back gesture.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAppExited(false);
+              historyStackRef.current = ['home'];
+              navigateScreen('home');
+            }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reopen Meat Ghar</span>
+          </button>
+        </div>
+      )}
     </MobileFrame>
   );
 }
