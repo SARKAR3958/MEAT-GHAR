@@ -42,6 +42,11 @@ interface AdminContextType {
   syncWithSupabase: () => Promise<void>;
   uploadImage: (file: File, folder?: string) => Promise<string | null>;
 
+  // Wallet Approvals
+  walletRequests: any[];
+  approveWalletRequest: (id: string) => Promise<void>;
+  rejectWalletRequest: (id: string) => Promise<void>;
+
   // Sliding Hero Banners
   banners: AdminBanner[];
   addBanner: (banner: Omit<AdminBanner, 'id'>) => void;
@@ -166,6 +171,36 @@ export const AdminProvider: React.FC<{
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
   const [supabaseStatus, setSupabaseStatus] = useState<string>('Connecting...');
 
+  // Wallet Approvals state
+  const [walletRequests, setWalletRequests] = useState<any[]>(() => {
+    const saved = localStorage.getItem('meatghar_wallet_requests');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: 'WTXN-882910',
+        user_id: '9876543210',
+        customer_name: 'Rahul Sharma',
+        amount: 1000,
+        type: 'deposit',
+        status: 'Pending',
+        qr_reference: '428819028812',
+        notes: 'UPI QR Deposit Request',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'WTXN-334289',
+        user_id: '9988776655',
+        customer_name: 'Amit Patel',
+        amount: 500,
+        type: 'deposit',
+        status: 'Approved',
+        qr_reference: '381902881726',
+        notes: 'UPI QR Deposit Request',
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ];
+  });
+
   // Toast Helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -260,6 +295,28 @@ export const AdminProvider: React.FC<{
           };
         });
         setOrders(mappedOrders);
+      }
+
+      // 4. Fetch Wallet Transactions
+      const { data: dbWalletTxns } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (dbWalletTxns && dbWalletTxns.length > 0) {
+        const mappedTxns = dbWalletTxns.map((t: any) => ({
+          id: t.id,
+          user_id: t.user_id,
+          customer_name: t.customer_name || `Customer ${t.user_id?.slice(-4) || ''}`,
+          amount: Number(t.amount),
+          type: t.type,
+          status: t.status,
+          qr_reference: t.qr_reference,
+          notes: t.notes || '',
+          created_at: t.created_at,
+        }));
+        setWalletRequests(mappedTxns);
+        localStorage.setItem('meatghar_wallet_requests', JSON.stringify(mappedTxns));
       }
     } catch (err) {
       console.warn('Supabase sync exception:', err);
@@ -467,6 +524,78 @@ export const AdminProvider: React.FC<{
     showToast(`Order status updated to "${status}"`);
   };
 
+  // Wallet Approvals Actions
+  const approveWalletRequest = async (id: string) => {
+    let amt = 0;
+    let userId = '';
+
+    const updated = walletRequests.map((req) => {
+      if (req.id === id) {
+        amt = req.amount;
+        userId = req.user_id;
+        return { ...req, status: 'Approved' };
+      }
+      return req;
+    });
+    setWalletRequests(updated);
+    localStorage.setItem('meatghar_wallet_requests', JSON.stringify(updated));
+
+    // Update locally stored balance if same user
+    try {
+      const savedUserStr = localStorage.getItem('meatghar_user');
+      const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
+      const currentPhone = userObj.phone || '9876543210';
+      if (userId === currentPhone) {
+        const curBalance = Number(localStorage.getItem('meatghar_wallet_balance') || '0');
+        const newBalance = curBalance + amt;
+        localStorage.setItem('meatghar_wallet_balance', String(newBalance));
+
+        const txns = JSON.parse(localStorage.getItem('meatghar_wallet_transactions') || '[]');
+        const newTxn = {
+          id: `WTXN-CRED-${Date.now()}`,
+          amount: amt,
+          type: 'deposit' as const,
+          status: 'Approved' as const,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          notes: 'Deposit Approved by Admin',
+        };
+        localStorage.setItem('meatghar_wallet_transactions', JSON.stringify([newTxn, ...txns]));
+      }
+    } catch (err) {
+      console.warn('Local wallet credit notice:', err);
+    }
+
+    // Sync to Supabase
+    try {
+      await supabase.from('wallet_transactions').update({ status: 'Approved' }).eq('id', id);
+      
+      const { data: wal } = await supabase.from('user_wallets').select('balance').eq('user_id', userId).maybeSingle();
+      const currentBal = wal ? Number(wal.balance) : 0;
+      await supabase.from('user_wallets').upsert({ user_id: userId, balance: currentBal + amt });
+    } catch (err) {
+      console.warn('Supabase approval note:', err);
+    }
+
+    showToast(`Wallet deposit of ₹${amt} APPROVED!`);
+  };
+
+  const rejectWalletRequest = async (id: string) => {
+    const updated = walletRequests.map((req) => {
+      if (req.id === id) return { ...req, status: 'Rejected' };
+      return req;
+    });
+    setWalletRequests(updated);
+    localStorage.setItem('meatghar_wallet_requests', JSON.stringify(updated));
+
+    try {
+      await supabase.from('wallet_transactions').update({ status: 'Rejected' }).eq('id', id);
+    } catch (err) {
+      console.warn('Supabase rejection note:', err);
+    }
+
+    showToast('Wallet deposit request rejected');
+  };
+
   // User Actions
   const toggleUserBlock = (userId: string) => {
     setUsers((prev) =>
@@ -656,6 +785,9 @@ export const AdminProvider: React.FC<{
         supabaseStatus,
         syncWithSupabase,
         uploadImage,
+        walletRequests,
+        approveWalletRequest,
+        rejectWalletRequest,
         banners,
         addBanner,
         updateBanner,

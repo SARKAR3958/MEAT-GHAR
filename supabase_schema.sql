@@ -116,6 +116,27 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 9. USER WALLETS TABLE
+CREATE TABLE IF NOT EXISTS public.user_wallets (
+    user_id TEXT PRIMARY KEY,
+    balance NUMERIC DEFAULT 0 NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. WALLET TRANSACTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.wallet_transactions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    customer_name TEXT,
+    amount NUMERIC NOT NULL,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    qr_reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
 -- STORAGE BUCKET CREATION (For Images & Product Photos)
 -- ==============================================================================
@@ -153,6 +174,8 @@ ALTER TABLE public.flash_deals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 
 -- Products: Everyone can view, anyone authorized or admin can insert/update/delete
 CREATE POLICY "Allow public read products" ON public.products FOR SELECT USING (true);
@@ -180,6 +203,12 @@ CREATE POLICY "Allow all addresses" ON public.addresses FOR ALL USING (true) WIT
 
 -- Support Tickets:
 CREATE POLICY "Allow all support_tickets" ON public.support_tickets FOR ALL USING (true) WITH CHECK (true);
+
+-- User Wallets:
+CREATE POLICY "Allow all user_wallets" ON public.user_wallets FOR ALL USING (true) WITH CHECK (true);
+
+-- Wallet Transactions:
+CREATE POLICY "Allow all wallet_transactions" ON public.wallet_transactions FOR ALL USING (true) WITH CHECK (true);
 
 -- ==============================================================================
 -- INITIAL SEED DATA (Runs only if tables are empty)

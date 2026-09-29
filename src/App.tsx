@@ -32,6 +32,7 @@ import { HelpSupportScreen } from './components/screens/HelpSupportScreen';
 import { CouponsScreen } from './components/screens/CouponsScreen';
 import { EditProfileScreen } from './components/screens/EditProfileScreen';
 import { ShareScreen } from './components/screens/ShareScreen';
+import { WalletScreen } from './components/screens/WalletScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { LocationData } from './types/location';
 import { preloadAllImages } from './utils/preloadAssets';
@@ -39,6 +40,7 @@ import { MeatGharLogo } from './components/MeatGharLogo';
 import { RotateCcw } from 'lucide-react';
 import { CartProvider } from './context/CartContext';
 import { supabase, signInWithGoogle } from './lib/supabase';
+import { isMedianApp, registerMedianPush, syncMedianPushTags, signInWithGoogleAndroidAPK } from './utils/medianBridge';
 
 export default function App() {
   const isInitialAdmin = typeof window !== 'undefined' && (
@@ -130,6 +132,11 @@ export default function App() {
     window.addEventListener('popstate', checkAdminQuery);
     window.addEventListener('hashchange', checkAdminQuery);
 
+    // Register Push Notifications on Mount for Median.co APK / iOS App wrapper
+    if (isMedianApp()) {
+      registerMedianPush();
+    }
+
     // Supabase Auth listener (for Google OAuth callback & session restore)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -137,16 +144,23 @@ export default function App() {
         const metaName =
           session.user.user_metadata?.full_name || session.user.user_metadata?.name;
         const uName = metaName || uEmail.split('@')[0] || 'Customer';
+        const uPhone = session.user.phone || '9876543210';
         setUserName(uName);
         setUserEmail(uEmail);
         setAuthMethod('google');
+        
+        // Sync custom tags with Median push notification server
+        if (isMedianApp()) {
+          syncMedianPushTags(uPhone, uName);
+        }
+
         try {
           localStorage.setItem(
             'meatghar_user',
             JSON.stringify({
               userName: uName,
               email: uEmail,
-              phone: session.user.phone || '9876543210',
+              phone: uPhone,
               authMethod: 'google',
               isLoggedIn: true,
               loginTime: new Date().toISOString(),
@@ -164,16 +178,23 @@ export default function App() {
         const metaName =
           session.user.user_metadata?.full_name || session.user.user_metadata?.name;
         const uName = metaName || uEmail.split('@')[0] || 'Customer';
+        const uPhone = session.user.phone || '9876543210';
         setUserName(uName);
         setUserEmail(uEmail);
         setAuthMethod('google');
+
+        // Sync tags on auth state change
+        if (isMedianApp()) {
+          syncMedianPushTags(uPhone, uName);
+        }
+
         try {
           localStorage.setItem(
             'meatghar_user',
             JSON.stringify({
               userName: uName,
               email: uEmail,
-              phone: session.user.phone || '9876543210',
+              phone: uPhone,
               authMethod: 'google',
               isLoggedIn: true,
               loginTime: new Date().toISOString(),
@@ -474,6 +495,9 @@ export default function App() {
       case 'share':
         navigateScreen('share');
         break;
+      case 'wallet':
+        navigateScreen('wallet');
+        break;
       case 'admin_panel':
       case 'admin':
         navigateScreen('admin_panel');
@@ -572,7 +596,7 @@ export default function App() {
               }}
               onGoogleLogin={async () => {
                 try {
-                  await signInWithGoogle();
+                  await signInWithGoogleAndroidAPK();
                 } catch (err: unknown) {
                   console.warn('Google login popup/notice:', err);
                   const gUser = {
@@ -906,6 +930,13 @@ export default function App() {
               userPhone={phoneNumber}
               onBack={() => goBack()}
               onNavigateTab={handleTabNavigation}
+            />
+          )}
+
+          {/* Screen 31.5: Wallet Screen */}
+          {currentScreen === 'wallet' && (
+            <WalletScreen
+              onBack={() => goBack()}
             />
           )}
 

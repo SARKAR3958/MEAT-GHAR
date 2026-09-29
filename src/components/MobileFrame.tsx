@@ -32,6 +32,7 @@ export type ScreenType =
   | 'help_support'
   | 'coupons'
   | 'share'
+  | 'wallet'
   | 'admin_panel';
 
 interface MobileFrameProps {

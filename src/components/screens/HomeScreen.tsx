@@ -28,6 +28,7 @@ import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
 import { LocationSelectModal } from '../common/LocationSelectModal';
 import { LocationData } from '../../types/location';
+import { supabase } from '../../lib/supabase';
 
 interface HomeScreenProps {
   onNavigateTab: (tab: string, categoryName?: string) => void;
@@ -314,7 +315,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onNavigateTab('category', target);
   };
 
-  const categories = [
+  // State for Dynamic Categories & Products synced with Supabase
+  const [categories, setCategories] = useState<any[]>(() => [
     {
       id: 'chicken',
       name: 'Chicken',
@@ -340,9 +342,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       name: 'Ready to Cook',
       image: '/src/assets/images/cat_ready_to_cook_1790507566251.jpg',
     },
-  ];
+  ]);
 
-  const popularProducts = [
+  const [popularProducts, setPopularProducts] = useState<any[]>(() => [
     {
       id: 'chicken_curry_cut',
       name: 'Fresh Chicken Curry Cut',
@@ -376,7 +378,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       discount: '10% OFF',
       image: '/src/assets/images/rohu_fish_wide_1790508321588.jpg',
     },
-  ];
+  ]);
+
+  // Load live menu data from Supabase
+  useEffect(() => {
+    const loadDynamicData = async () => {
+      try {
+        const { data: catData, error: catErr } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+
+        if (!catErr && catData && catData.length > 0) {
+          setCategories(catData.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            image: c.image || '/src/assets/images/cat_chicken_1790504356265.jpg'
+          })));
+        }
+
+        const { data: prodData, error: prodErr } = await supabase
+          .from('products')
+          .select('*')
+          .eq('in_stock', true)
+          .limit(6);
+
+        if (!prodErr && prodData && prodData.length > 0) {
+          setPopularProducts(prodData.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: Number(p.price),
+            priceUnit: `₹${p.price} / ${p.weight || '500g'}`,
+            originalPrice: p.original_price ? Number(p.original_price) : undefined,
+            rating: Number(p.rating || 4.8),
+            reviews: String(p.rating_count || 140),
+            discount: p.badge || (p.original_price ? `${Math.round(((p.original_price - p.price) / p.original_price) * 100)}% OFF` : undefined),
+            image: p.image || '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg'
+          })));
+        }
+      } catch (err) {
+        console.warn('Supabase fetch error for categories or products:', err);
+      }
+    };
+    loadDynamicData();
+  }, []);
 
   const handleAddToCart = (e: React.MouseEvent, prod: { id: string; name: string; price: number; originalPrice?: number; image: string }) => {
     e.stopPropagation();
@@ -429,14 +475,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
           </div>
 
-          {/* Right: Notifications */}
+          {/* Right: Notifications & Profile */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => onNavigateTab('notifications')}
               className="relative p-1.5 rounded-xl hover:bg-red-50 text-[#BA181B] transition-colors cursor-pointer border border-slate-100"
+              title="Notifications"
             >
               <Bell className="w-5 h-5 text-[#BA181B] stroke-[2]" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#BA181B] border border-white" />
+            </button>
+            <button
+              onClick={() => onNavigateTab('profile')}
+              className="p-1.5 rounded-xl hover:bg-red-50 text-[#BA181B] transition-colors cursor-pointer border border-slate-100 flex items-center justify-center"
+              title="My Profile"
+            >
+              <User className="w-5 h-5 text-[#BA181B] stroke-[2]" />
             </button>
           </div>
         </div>

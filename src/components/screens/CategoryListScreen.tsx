@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
+import { supabase } from '../../lib/supabase';
 
 interface CategoryListScreenProps {
   initialCategory?: string | null;
@@ -521,11 +522,57 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
 }) => {
   const { cartCount, addToCart, updateQuantity, getItemQuantity } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
+  
+  const [categoriesList, setCategoriesList] = useState<CategoryInfo[]>(ALL_CATEGORIES);
+  const [productsList, setProductsList] = useState<CategoryProduct[]>(ALL_PRODUCTS);
+
+  // Load from Supabase on mount
+  useEffect(() => {
+    const fetchSupabaseMenu = async () => {
+      try {
+        const { data: dbCats } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('is_active', true);
+          
+        if (dbCats && dbCats.length > 0) {
+          const formattedCats: CategoryInfo[] = dbCats.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            itemCount: 0, // Computed dynamically below or default
+            image: c.image || '/src/assets/images/cat_chicken_1790504356265.jpg',
+          }));
+          setCategoriesList(formattedCats);
+        }
+
+        const { data: dbProducts } = await supabase
+          .from('products')
+          .select('*');
+          
+        if (dbProducts && dbProducts.length > 0) {
+          const formattedProducts: CategoryProduct[] = dbProducts.map((p: any) => ({
+            id: p.id,
+            categoryId: p.category.toLowerCase().replace(/\s+/g, '-'),
+            name: p.name,
+            price: `₹${p.price} / ${p.weight || '500g'}`,
+            discount: p.badge || (p.original_price ? `${Math.round(((p.original_price - p.price) / p.original_price) * 100)}% OFF` : undefined),
+            rating: `${p.rating || 4.8} (${p.rating_count || 120})`,
+            inStock: p.in_stock !== false,
+            image: p.image || '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg',
+          }));
+          setProductsList(formattedProducts);
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase products in CategoryListScreen:', err);
+      }
+    };
+    fetchSupabaseMenu();
+  }, []);
 
   useEffect(() => {
     if (initialCategory) {
       // Find category matching name or id
-      const matched = ALL_CATEGORIES.find(
+      const matched = categoriesList.find(
         (c) => c.name.toLowerCase() === initialCategory.toLowerCase() || c.id === initialCategory.toLowerCase()
       );
       if (matched) {
@@ -534,11 +581,11 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
     } else {
       setSelectedCategory(null);
     }
-  }, [initialCategory]);
+  }, [initialCategory, categoriesList]);
 
-  const currentCategoryInfo = ALL_CATEGORIES.find((c) => c.id === selectedCategory);
+  const currentCategoryInfo = categoriesList.find((c) => c.id === selectedCategory);
   const displayedProducts = selectedCategory
-    ? ALL_PRODUCTS.filter((p) => p.categoryId === selectedCategory)
+    ? productsList.filter((p) => p.categoryId === selectedCategory)
     : [];
 
   const handleAddQuantity = (product: CategoryProduct, e: React.MouseEvent) => {

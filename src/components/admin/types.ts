@@ -14,7 +14,8 @@ export type AdminScreen =
   | 'categories'
   | 'offers'
   | 'reports_settings'
-  | 'support';
+  | 'support'
+  | 'push_notifications';
 
 export interface AdminBanner {
   id: string;

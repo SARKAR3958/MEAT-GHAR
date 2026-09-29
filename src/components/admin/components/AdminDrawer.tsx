@@ -15,6 +15,7 @@ import {
   LogOut,
   X,
   ExternalLink,
+  Bell,
 } from 'lucide-react';
 import { useAdmin } from '../AdminContext';
 import { AdminScreen } from '../types';
@@ -36,6 +37,7 @@ export const AdminDrawer: React.FC<{ onSwitchToCustomerApp?: () => void }> = ({ 
 
   const menuItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'push_notifications', label: 'Push Notifications', icon: Bell },
     { id: 'flash_deals', label: '⚡ Flash Deals', icon: Flame },
     { id: 'banners', label: 'Sliding Banners', icon: ImageIcon },
     { id: 'products', label: 'Products', icon: Package },
@@ -102,13 +104,9 @@ export const AdminDrawer: React.FC<{ onSwitchToCustomerApp?: () => void }> = ({ 
               {menuItems.map((item, index) => {
                 const Icon = item.icon;
                 const isActive =
-                  (item.id === 'dashboard' && currentScreen === 'dashboard') ||
+                  currentScreen === item.id ||
                   (item.id === 'products' && (currentScreen === 'products' || currentScreen === 'add_product' || currentScreen === 'product_details')) ||
-                  (item.id === 'orders' && (currentScreen === 'orders' || currentScreen === 'order_details')) ||
-                  (item.id === 'users' && currentScreen === 'users') ||
-                  (item.id === 'categories' && currentScreen === 'categories') ||
-                  (item.id === 'offers' && currentScreen === 'offers') ||
-                  (item.id === 'reports_settings' && currentScreen === 'reports_settings' && (item.label === 'Reports' || item.label === 'Settings'));
+                  (item.id === 'orders' && (currentScreen === 'orders' || currentScreen === 'order_details'));
 
                 return (
                   <button

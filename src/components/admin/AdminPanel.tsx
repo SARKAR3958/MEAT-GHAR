@@ -19,6 +19,7 @@ import { ReportsSettingsScreen } from './views/ReportsSettingsScreen';
 import { SupportScreen } from './views/SupportScreen';
 import { BannersScreen } from './views/BannersScreen';
 import { FlashDealsScreen } from './views/FlashDealsScreen';
+import { PushNotificationsScreen } from './views/PushNotificationsScreen';
 
 // Navigation Components
 import { AdminDrawer } from './components/AdminDrawer';
@@ -241,6 +242,19 @@ const AdminPanelRouter: React.FC<AdminPanelProps> = ({ onSwitchToCustomerApp }) 
               className="w-full h-full"
             >
               <SupportScreen />
+            </motion.div>
+          )}
+
+          {currentScreen === 'push_notifications' && (
+            <motion.div
+              key="push_notifications"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-full h-full"
+            >
+              <PushNotificationsScreen />
             </motion.div>
           )}
         </AnimatePresence>

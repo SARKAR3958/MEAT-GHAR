@@ -29,17 +29,102 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   const { totalAmount, subtotal, deliveryFee, cartItems, clearCart } = useCart();
   const [selectedPayment, setSelectedPayment] = useState<'upi' | 'card' | 'netbanking' | 'wallet' | 'cod'>('upi');
   const [isSuccessModal, setIsSuccessModal] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const displayTotal = totalAmount > 0 ? totalAmount : 420;
 
-  const handlePlaceOrderClick = () => {
+  // Load wallet balance from Supabase or localStorage on mount
+  React.useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const savedUserStr = localStorage.getItem('meatghar_user');
+        const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
+        const phone = userObj.phone || '9876543210';
+        
+        const { data } = await supabase
+          .from('user_wallets')
+          .select('balance')
+          .eq('user_id', phone)
+          .single();
+          
+        if (data) {
+          setWalletBalance(Number(data.balance));
+          localStorage.setItem('meatghar_wallet_balance', String(data.balance));
+        } else {
+          const localBal = localStorage.getItem('meatghar_wallet_balance');
+          setWalletBalance(localBal ? Number(localBal) : 500);
+        }
+      } catch (err) {
+        console.warn('Error fetching wallet balance:', err);
+      }
+    };
+    fetchBalance();
+  }, []);
+
+  const handlePlaceOrderClick = async () => {
+    setErrorMessage('');
+    const savedUserStr = localStorage.getItem('meatghar_user');
+    const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
+    const phone = userObj.phone || '9876543210';
+
+    // 1. If wallet payment selected, validate and deduct from database
+    if (selectedPayment === 'wallet') {
+      let currentBalance = walletBalance;
+      try {
+        const { data } = await supabase
+          .from('user_wallets')
+          .select('balance')
+          .eq('user_id', phone)
+          .single();
+        if (data) {
+          currentBalance = Number(data.balance);
+          setWalletBalance(currentBalance);
+        }
+      } catch (e) {
+        console.warn('Error checking latest balance:', e);
+      }
+
+      if (currentBalance < displayTotal) {
+        setErrorMessage(`Insufficient balance in MeatGhar Wallet! You have ₹${currentBalance}, but order is ₹${displayTotal}. Please select COD or add funds.`);
+        return;
+      }
+
+      // Deduct balance
+      const newBalance = currentBalance - displayTotal;
+      try {
+        const { error: updateErr } = await supabase
+          .from('user_wallets')
+          .upsert({ user_id: phone, balance: newBalance });
+          
+        if (updateErr) throw updateErr;
+
+        // Insert payment txn record
+        const txnId = `WTXN-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.from('wallet_transactions').insert({
+          id: txnId,
+          user_id: phone,
+          customer_name: userObj.userName || 'Rahul Sharma',
+          amount: displayTotal,
+          type: 'payment',
+          status: 'Approved',
+          notes: `Paid for order #${txnId}`,
+        });
+
+        localStorage.setItem('meatghar_wallet_balance', String(newBalance));
+        setWalletBalance(newBalance);
+      } catch (err) {
+        console.error('Wallet deduction error:', err);
+        setErrorMessage('Wallet payment failed. Please try again or select Cash on Delivery.');
+        return;
+      }
+    }
+
     setIsSuccessModal(true);
 
     // Generate Order ID & assemble data
     const orderId = `MTG-${Math.floor(100000 + Math.random() * 900000)}`;
     try {
-      const savedUserStr = localStorage.getItem('meatghar_user');
-      const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
       const savedAddrStr = localStorage.getItem('meatghar_selected_location');
       const addrObj = savedAddrStr ? JSON.parse(savedAddrStr) : null;
 
@@ -269,8 +354,8 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
                 <Wallet className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-extrabold leading-tight">Wallet Balance</h4>
-                <p className="text-[9px] text-slate-500 font-medium">MeatGhar Wallet</p>
+                <h4 className="text-xs font-extrabold leading-tight">Wallet (₹{walletBalance})</h4>
+                <p className="text-[9px] text-emerald-600 font-bold">MeatGhar Balance</p>
               </div>
             </button>
 
@@ -306,7 +391,12 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
       </div>
 
       {/* Fixed Bottom Place Order Button (Never scrolls) */}
-      <div className="shrink-0 bg-white border-t border-slate-200 p-3 z-30 shadow-lg">
+      <div className="shrink-0 bg-white border-t border-slate-200 p-3 z-30 shadow-lg space-y-2">
+        {errorMessage && (
+          <div className="bg-red-50 text-red-600 text-xs font-bold px-3 py-2 rounded-xl border border-red-100 text-center animate-fade-in">
+            {errorMessage}
+          </div>
+        )}
         <button
           onClick={handlePlaceOrderClick}
           className="w-full py-3.5 px-6 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-red-900/20 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"

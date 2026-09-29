@@ -18,14 +18,14 @@ import { AdminHeader } from '../components/AdminHeader';
 import { AdminBottomNav } from '../components/AdminBottomNav';
 
 export const ReportsSettingsScreen: React.FC = () => {
-  const { showToast, orders, users, products } = useAdmin();
-  const [activeSegment, setActiveSegment] = useState<'reports' | 'settings'>('reports');
+  const { showToast, orders, users, products, walletRequests, approveWalletRequest, rejectWalletRequest } = useAdmin();
+  const [activeSegment, setActiveSegment] = useState<'reports' | 'settings' | 'wallet'>('reports');
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const reportsList = [
-    { id: 'sales', title: 'Sales Report', icon: BarChart3, desc: 'Revenue, profit margins, and daily analytics' },
+    { id: 'sales', title: 'Sales Report', icon: BarChart3, desc: 'Revenue, profit margins, and analytics' },
     { id: 'orders', title: 'Order Report', icon: ShoppingBag, desc: 'Fulfilled vs cancelled dispatch metrics' },
-    { id: 'users', title: 'User Report', icon: Users, desc: 'Customer retention and new signups' },
+    { id: 'users', title: 'User Report', icon: Users, desc: 'Customer retention and signups' },
     { id: 'products', title: 'Product Report', icon: Package, desc: 'Top-selling cuts and low stock inventory' },
   ];
 
@@ -53,12 +53,12 @@ export const ReportsSettingsScreen: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
         {/* ========================================================================= */}
-        {/* Segmented Switcher [Reports | Settings] Matching Screen 13 */}
+        {/* 3-Way Segmented Switcher [Reports | Settings | Wallet Requests] */}
         {/* ========================================================================= */}
         <div className="bg-white p-1 rounded-2xl border border-slate-300 flex items-center shadow-2xs">
           <button
             onClick={() => setActiveSegment('reports')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer ${
               activeSegment === 'reports'
                 ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -69,13 +69,29 @@ export const ReportsSettingsScreen: React.FC = () => {
 
           <button
             onClick={() => setActiveSegment('settings')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer ${
               activeSegment === 'settings'
                 ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Settings
+          </button>
+
+          <button
+            onClick={() => setActiveSegment('wallet')}
+            className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer relative ${
+              activeSegment === 'wallet'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Wallet Req
+            {walletRequests.filter((r) => r.status === 'Pending').length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-white font-black text-[9px] w-5 h-5 rounded-full flex items-center justify-center border border-white">
+                {walletRequests.filter((r) => r.status === 'Pending').length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -141,6 +157,69 @@ export const ReportsSettingsScreen: React.FC = () => {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {activeSegment === 'wallet' && (
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Deposit Requests</h3>
+
+            {walletRequests.length === 0 ? (
+              <div className="text-center py-10 bg-white border border-slate-300 rounded-3xl p-6 text-slate-400 font-semibold text-xs">
+                No deposit requests received
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {walletRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-white p-4 rounded-3xl border border-slate-300 shadow-2xs space-y-3.5"
+                  >
+                    <div className="flex items-start justify-between border-b border-slate-100 pb-2">
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900">{req.customer_name}</h4>
+                        <p className="text-[10px] text-slate-400 font-semibold">User: {req.user_id}</p>
+                        {req.qr_reference && (
+                          <p className="text-[10px] text-slate-700 font-medium">Ref/UTR: <span className="font-bold text-[#E53935]">{req.qr_reference}</span></p>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-sm font-black text-slate-900">₹{req.amount}</p>
+                        <span
+                          className={`text-[9px] px-2 py-0.5 rounded-md font-bold mt-1 inline-block ${
+                            req.status === 'Approved'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : req.status === 'Pending'
+                              ? 'bg-amber-50 text-amber-600 border border-amber-100 animate-pulse'
+                              : 'bg-rose-50 text-rose-600 border border-rose-100'
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {req.status === 'Pending' && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          onClick={() => approveWalletRequest(req.id)}
+                          className="py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-[11px] font-extrabold rounded-2xl cursor-pointer transition-all shadow-sm"
+                        >
+                          APPROVE
+                        </button>
+                        <button
+                          onClick={() => rejectWalletRequest(req.id)}
+                          className="py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-[11px] font-extrabold rounded-2xl cursor-pointer transition-all shadow-sm"
+                        >
+                          REJECT
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
