@@ -102,33 +102,43 @@ export async function signInWithGoogleAndroidAPK() {
   }
 
   if (data?.url) {
-    console.log('Opening APK OAuth URL in Popup Custom Tab:', data.url);
+    console.log('Opening APK OAuth URL in Custom Tab / App Browser:', data.url);
     
-    // For Median.co, window.open with a blank target automatically triggers a premium 
-    // in-app browser overlay (Custom Tab) which returns back seamlessly without losing memory state.
     if (isMedianApp()) {
-      // Median.co specific instruction to open in native Popup browser
-      const oauthPopup = window.open(data.url, '_blank', 'location=yes,clearsessioncache=no,clearcache=no');
+      const gWindow = window as any;
       
-      // Keep checking if the popup has redirected back to the app domain to auto-close it
-      if (oauthPopup) {
-        const interval = setInterval(() => {
-          try {
-            if (oauthPopup.closed) {
-              clearInterval(interval);
-            } else {
-              const popupUrl = oauthPopup.location?.href;
-              if (popupUrl && popupUrl.includes(currentOrigin) && (popupUrl.includes('access_token') || popupUrl.includes('code='))) {
-                // Login successful! Close popup to return to the active app screen
-                oauthPopup.close();
+      // Method A: Check for Median JS Bridge's window.open with 'appbrowser' (In-App Tab) mode
+      if (gWindow.median?.window?.open) {
+        console.log('Using Median JS Bridge to open OAuth in appbrowser mode...');
+        gWindow.median.window.open(data.url, 'appbrowser');
+      } else if (gWindow.gonative?.window?.open) {
+        console.log('Using GoNative JS Bridge to open OAuth in appbrowser mode...');
+        gWindow.gonative.window.open(data.url, 'appbrowser');
+      } else {
+        // Method B: window.open with custom popup options
+        console.log('Using standard window.open fallback inside Webview...');
+        const oauthPopup = window.open(data.url, '_blank', 'location=yes,clearsessioncache=no,clearcache=no');
+        
+        // Keep checking if the popup has redirected back to the app domain to auto-close it
+        if (oauthPopup) {
+          const interval = setInterval(() => {
+            try {
+              if (oauthPopup.closed) {
                 clearInterval(interval);
-                window.location.reload(); // Reload main app to instantly pick up the new session
+              } else {
+                const popupUrl = oauthPopup.location?.href;
+                if (popupUrl && popupUrl.includes(currentOrigin) && (popupUrl.includes('access_token') || popupUrl.includes('code='))) {
+                  // Login successful! Close popup to return to the active app screen
+                  oauthPopup.close();
+                  clearInterval(interval);
+                  window.location.reload(); // Reload main app to instantly pick up the new session
+                }
               }
+            } catch (e) {
+              // Cross-origin restrictions can throw errors while on Google login domain, which is expected.
             }
-          } catch (e) {
-            // Cross-origin restrictions can throw errors while on Google login domain, which is expected.
-          }
-        }, 1000);
+          }, 1000);
+        }
       }
     } else {
       // Fallback for regular web browsers

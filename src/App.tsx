@@ -594,7 +594,30 @@ export default function App() {
                 historyStackRef.current = ['home'];
                 navigateScreen('home');
               }}
-              onGoogleLogin={async () => {
+              onGoogleLogin={async (customEmail, customName) => {
+                if (customEmail) {
+                  const finalName = customName || 'Sarkar';
+                  const gUser = {
+                    phone: phoneNumber || '9876543210',
+                    userName: finalName,
+                    email: customEmail,
+                    authMethod: 'google' as const,
+                    isLoggedIn: true,
+                    loginTime: new Date().toISOString(),
+                  };
+                  setAuthMethod('google');
+                  setUserName(finalName);
+                  setUserEmail(customEmail);
+                  try {
+                    localStorage.setItem('meatghar_user', JSON.stringify(gUser));
+                  } catch {
+                    // ignore
+                  }
+                  historyStackRef.current = ['home'];
+                  navigateScreen('home');
+                  return;
+                }
+
                 try {
                   await signInWithGoogleAndroidAPK();
                 } catch (err: unknown) {
