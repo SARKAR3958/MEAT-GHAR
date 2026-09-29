@@ -12,6 +12,7 @@ import {
   ClipboardList,
   ShoppingCart,
   User,
+  Share2,
   Ticket,
   X,
   ShoppingBag,
@@ -107,7 +108,7 @@ export const CartScreen: React.FC<CartScreenProps> = ({
         </div>
 
         {/* Meat Ghar Header Branding */}
-        <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+        <HeaderMeatGharLogo />
       </div>
 
       {/* 2. SCROLLABLE MAIN CONTENT AREA */}
@@ -347,14 +348,6 @@ export const CartScreen: React.FC<CartScreenProps> = ({
           </button>
 
           <button
-            onClick={() => onNavigateTab('orders')}
-            className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-          >
-            <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-            <span className="text-[10px] font-semibold text-slate-500">Orders</span>
-          </button>
-
-          <button
             onClick={() => onNavigateTab('cart')}
             className="flex flex-col items-center gap-0.5 text-[#BA181B] relative cursor-pointer"
           >
@@ -369,11 +362,19 @@ export const CartScreen: React.FC<CartScreenProps> = ({
           </button>
 
           <button
-            onClick={() => onNavigateTab('profile')}
+            onClick={() => onNavigateTab('orders')}
             className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
           >
-            <User className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-            <span className="text-[10px] font-semibold text-slate-500">Profile</span>
+            <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+            <span className="text-[10px] font-semibold text-slate-500">Orders</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('share')}
+            className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+          >
+            <Share2 className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+            <span className="text-[10px] font-semibold text-slate-500">Share</span>
           </button>
         </div>
       </div>

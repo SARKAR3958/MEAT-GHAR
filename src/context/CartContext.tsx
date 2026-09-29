@@ -7,6 +7,7 @@ export interface CartItem {
   weight?: string;
   prep?: string;
   cut?: string;
+  notes?: string;
   price: number;
   originalPrice?: number;
   quantity: number;
@@ -30,6 +31,7 @@ interface CartContextType {
     weight?: string;
     prep?: string;
     cut?: string;
+    notes?: string;
     quantity?: number;
   }) => void;
   updateQuantity: (id: string, delta: number) => void;
@@ -81,6 +83,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     weight?: string;
     prep?: string;
     cut?: string;
+    notes?: string;
     quantity?: number;
   }) => {
     const addQty = product.quantity && product.quantity > 0 ? product.quantity : 1;
@@ -93,6 +96,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           quantity: updated[existingIdx].quantity + addQty,
           prep: product.prep || updated[existingIdx].prep,
           cut: product.cut || updated[existingIdx].cut,
+          notes: product.notes || updated[existingIdx].notes,
           weight: product.weight || updated[existingIdx].weight,
         };
         return updated;
@@ -104,8 +108,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: product.name,
             category: product.category || 'Meat',
             weight: product.weight || '1 KG',
-            prep: product.prep || 'Full Cleaned',
+            prep: product.prep,
             cut: product.cut || 'Curry Cut',
+            notes: product.notes,
             price: product.price,
             originalPrice: product.originalPrice || Math.round(product.price * 1.15),
             quantity: addQty,

@@ -12,6 +12,7 @@ import {
   ClipboardList,
   ShoppingCart,
   User,
+  Share2,
 } from 'lucide-react';
 import { ALL_PRODUCTS, CategoryProduct } from './CategoryListScreen';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
@@ -131,7 +132,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
           </div>
 
           {/* Meat Ghar Header Branding */}
-          <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+          <HeaderMeatGharLogo />
         </div>
 
         {/* Search Input */}
@@ -290,31 +291,22 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                     </div>
 
                     {/* Quantity or Add Button */}
-                    {qty > 0 ? (
-                      <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-2 py-1">
-                        <button
-                          onClick={(e) => handleRemoveQuantity(p.id, e)}
-                          className="w-5 h-5 rounded-lg bg-white text-[#BA181B] font-black flex items-center justify-center shadow-2xs hover:bg-red-100 cursor-pointer"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-xs font-extrabold text-[#BA181B]">{qty}</span>
-                        <button
-                          onClick={(e) => handleAddQuantity(p, e)}
-                          className="w-5 h-5 rounded-lg bg-[#BA181B] text-white font-black flex items-center justify-center shadow-2xs hover:bg-red-800 cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="flex flex-col gap-1.5 mt-auto">
                       <button
-                        onClick={(e) => handleAddQuantity(p, e)}
-                        className="w-full py-1.5 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                        onClick={() => onSelectProduct(p.name)}
+                        className="w-full py-2 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
                       >
-                        <ShoppingCart className="w-3.5 h-3.5 text-white" />
+                        <Plus className="w-3 h-3 text-white stroke-[2.5]" />
                         <span>Add</span>
                       </button>
-                    )}
+                      <button
+                        onClick={() => onSelectProduct(p.name)}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                      >
+                        <ShoppingCart className="w-3 h-3 text-white stroke-[2.5]" />
+                        <span>Buy Now</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -366,14 +358,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigateTab('my_orders')}
-          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-        >
-          <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="text-[10px] font-semibold text-slate-500">Orders</span>
-        </button>
-
-        <button
           onClick={() => onNavigateTab('cart')}
           className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors relative cursor-pointer"
         >
@@ -387,11 +371,19 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigateTab('my_profile')}
+          onClick={() => onNavigateTab('my_orders')}
           className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
-          <User className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="text-[10px] font-semibold text-slate-500">Profile</span>
+          <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+          <span className="text-[10px] font-semibold text-slate-500">Orders</span>
+        </button>
+
+        <button
+          onClick={() => onNavigateTab('share')}
+          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        >
+          <Share2 className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+          <span className="text-[10px] font-semibold text-slate-500">Share</span>
         </button>
       </div>
     </div>

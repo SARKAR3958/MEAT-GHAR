@@ -30,7 +30,9 @@ export type ScreenType =
   | 'my_addresses'
   | 'notifications'
   | 'help_support'
-  | 'coupons';
+  | 'coupons'
+  | 'share'
+  | 'admin_panel';
 
 interface MobileFrameProps {
   currentScreen?: ScreenType;

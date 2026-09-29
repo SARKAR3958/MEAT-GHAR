@@ -13,7 +13,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onNext }) => {
 
     const timer = setTimeout(() => {
       onNext();
-    }, 4000);
+    }, 6000);
     return () => clearTimeout(timer);
   }, [onNext]);
 
@@ -30,7 +30,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onNext }) => {
 
       {/* Center Main Logo Lockup */}
       <div className="relative z-10 flex flex-col items-center animate-fade-in my-auto">
-        <MeatGharLogo variant="white" size="lg" showTagline={true} />
+        <MeatGharLogo size="splash" showTagline={true} />
       </div>
 
       {/* Bottom Loading Indicator */}

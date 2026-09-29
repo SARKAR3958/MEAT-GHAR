@@ -172,7 +172,7 @@ export const CouponsScreen: React.FC<CouponsScreenProps> = ({
             </h2>
           </div>
 
-          <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+          <HeaderMeatGharLogo />
         </div>
 
         <p className="text-xs text-slate-500 font-normal leading-relaxed mb-3">

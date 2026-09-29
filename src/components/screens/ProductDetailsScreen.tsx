@@ -7,45 +7,74 @@ import {
   Minus,
   Check,
   ShoppingBag,
+  ShoppingCart,
   Info,
-  ChevronDown,
+  X,
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
+import { PurchaseAgreementModal } from '../PurchaseAgreementModal';
 
 interface ProductDetailsScreenProps {
   onBack: () => void;
   onAddToCart?: () => void;
+  onNavigateTab: (tab: string) => void;
 }
 
 export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
   onBack,
   onAddToCart,
+  onNavigateTab,
 }) => {
   const { addToCart } = useCart();
-  const [quantityKg, setQuantityKg] = useState(1);
+  const [quantityKg, setQuantityKg] = useState(0.25);
   const [selectedCut, setSelectedCut] = useState('Curry Cut');
   const [customCutInstruction, setCustomCutInstruction] = useState('');
-  const [selectedPrep, setSelectedPrep] = useState('Full Cleaned');
   const [notes, setNotes] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showMinLimitToast, setShowMinLimitToast] = useState(false);
+  const [showCuttingGuide, setShowCuttingGuide] = useState(false);
+  const [isAgreementOpen, setIsAgreementOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'add_to_cart' | 'buy_now' | null>(null);
 
   const pricePerKg = 420;
   const totalPrice = Math.round(pricePerKg * quantityKg);
 
-  const cutOptions = ['Curry Cut', 'Small Pieces', 'Large Pieces', 'Custom Cut'];
-  const prepOptions = [
-    { id: 'Full Cleaned', line1: 'Full', line2: 'Cleaned' },
-    { id: 'Extra Cleaned', line1: 'Extra', line2: 'Cleaned' },
-    { id: 'Skinless', line1: 'Skin', line2: 'Less' },
-    { id: 'With Skin', line1: 'With Skin', line2: '' },
-    { id: 'Bone-in', line1: 'Bone-in', line2: '' },
-    { id: 'Boneless', line1: 'Boneless', line2: '' },
-  ];
+  const formatQuantity = (val: number) => {
+    if (val === 0.25) return '250 GRAM';
+    if (val === 0.5) return '500 GRAM';
+    return `${val} KG`;
+  };
 
-  const handleAddProductToCart = () => {
+  const handleIncreaseQuantity = () => {
+    setQuantityKg((prev) => {
+      if (prev < 0.25) return 0.25;
+      if (prev === 0.25) return 0.5;
+      if (prev < 10) return Number((prev + 0.5).toFixed(2));
+      return 10;
+    });
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (quantityKg <= 0.25) {
+      setShowMinLimitToast(true);
+      setTimeout(() => {
+        setShowMinLimitToast(false);
+      }, 2000);
+      return;
+    }
+    if (quantityKg <= 0.5) {
+      setQuantityKg(0.25);
+      return;
+    }
+    setQuantityKg((prev) => Number((prev - 0.5).toFixed(2)));
+  };
+
+  const cutOptions = ['Curry Cut', 'Small Pieces', 'Large Pieces', 'Custom Cut'];
+
+  const executeAddToCart = () => {
     addToCart({
       id: 'chicken_curry_cut',
       name: 'Fresh Chicken Curry Cut',
@@ -53,9 +82,8 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
       originalPrice: Math.round(totalPrice * 1.1),
       image: '/images/chicken_curry_cut_wide_1790508282856.jpg',
       category: 'Chicken',
-      weight: `${quantityKg} KG`,
+      weight: formatQuantity(quantityKg),
       cut: selectedCut === 'Custom Cut' ? `Custom: ${customCutInstruction || 'Special Cut'}` : selectedCut,
-      prep: selectedPrep,
       quantity: 1,
     });
 
@@ -66,13 +94,135 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
     }, 900);
   };
 
+  const executeBuyNow = () => {
+    addToCart({
+      id: 'chicken_curry_cut',
+      name: 'Fresh Chicken Curry Cut',
+      price: totalPrice,
+      originalPrice: Math.round(totalPrice * 1.1),
+      image: '/images/chicken_curry_cut_wide_1790508282856.jpg',
+      category: 'Chicken',
+      weight: formatQuantity(quantityKg),
+      cut: selectedCut === 'Custom Cut' ? `Custom: ${customCutInstruction || 'Special Cut'}` : selectedCut,
+      quantity: 1,
+    });
+    onNavigateTab('checkout');
+  };
+
+  const handleAddProductToCart = () => {
+    setPendingAction('add_to_cart');
+    setIsAgreementOpen(true);
+  };
+
+  const handleBuyNow = () => {
+    setPendingAction('buy_now');
+    setIsAgreementOpen(true);
+  };
+
+  const handleConfirmAgreement = () => {
+    setIsAgreementOpen(false);
+    if (pendingAction === 'add_to_cart') {
+      executeAddToCart();
+    } else if (pendingAction === 'buy_now') {
+      executeBuyNow();
+    }
+    setPendingAction(null);
+  };
+
   return (
     <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
       {/* Success Toast */}
       {showSuccessToast && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-bounce">
           <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
-          <span>Added {quantityKg} KG to Cart!</span>
+          <span>Added {formatQuantity(quantityKg)} to Cart!</span>
+        </div>
+      )}
+
+      {/* Minimum Limit Alert Toast */}
+      {showMinLimitToast && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-[#333333] text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 animate-bounce border border-slate-600">
+          <span className="text-xs">🏠</span>
+          <span className="tracking-wide">MINIMUM 250 GRAM</span>
+        </div>
+      )}
+
+      {/* ✂️ Cutting Guide Popup Modal */}
+      {showCuttingGuide && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setShowCuttingGuide(false)}
+        >
+          <div
+            className="bg-white w-full max-w-[320px] rounded-2xl p-4 shadow-2xl border border-slate-100 relative text-slate-800 flex flex-col max-h-[90vh] overflow-y-auto no-scrollbar"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <h3 className="text-sm font-extrabold text-[#BA181B] flex items-center gap-1.5">
+                <span>✂️</span>
+                <span>Cutting Guide</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCuttingGuide(false)}
+                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Guide Content */}
+            <div className="py-2.5 space-y-2.5 text-left">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Curry Cut</h4>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Medium-sized pieces, perfect for everyday curries, gravies, and stews.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Small Pieces</h4>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Smaller pieces for quicker cooking and dishes that require bite-sized chicken.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Large Pieces</h4>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Larger pieces, ideal for BBQ, roasting, grilling, and special dishes.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Custom Cut</h4>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Tell us exactly how you want your chicken cut.
+                  <br />
+                  <span className="text-slate-400 italic">Example: “12 medium-sized pieces”</span>
+                </p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 flex items-start gap-1.5 mt-1">
+                <span className="text-xs shrink-0">💡</span>
+                <p className="text-[10px] text-amber-900 font-medium leading-tight">
+                  <strong>Note:</strong> Piece count may vary depending on the selected weight and cut size.
+                </p>
+              </div>
+            </div>
+
+            {/* GOT IT Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCuttingGuide(false)}
+                className="w-full py-2.5 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-red-900/20 transition-all cursor-pointer"
+              >
+                GOT IT
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -155,27 +305,38 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
             <div className="flex items-center justify-between">
               <button
-                onClick={() => setQuantityKg((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
-                className="w-9 h-9 rounded-xl bg-red-100/70 text-[#A8071A] flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
+                type="button"
+                onClick={handleDecreaseQuantity}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer active:scale-95 ${
+                  quantityKg <= 0.25
+                    ? 'bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-[#BA181B]'
+                    : 'bg-red-100/70 text-[#A8071A] hover:bg-red-200'
+                }`}
+                title={quantityKg <= 0.25 ? 'Minimum 250 GRAM' : 'Decrease Quantity'}
               >
                 <Minus className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center gap-2 font-black text-sm text-slate-900">
-                <span>{quantityKg} KG</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center justify-center font-black text-sm text-slate-900 tracking-wide">
+                <span>{formatQuantity(quantityKg)}</span>
               </div>
 
               <button
-                onClick={() => setQuantityKg((prev) => Math.min(5, Number((prev + 0.25).toFixed(2))))}
-                className="w-9 h-9 rounded-xl bg-red-100/70 text-[#A8071A] flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
+                type="button"
+                onClick={handleIncreaseQuantity}
+                disabled={quantityKg >= 10}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer active:scale-95 ${
+                  quantityKg >= 10
+                    ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                    : 'bg-red-100/70 text-[#A8071A] hover:bg-red-200'
+                }`}
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-[10px] text-center text-slate-400 font-medium mt-2">
-              Min 500g &bull; Max 5KG &bull; Increment 250g
+            <p className="text-[10px] text-center text-slate-400 font-semibold tracking-wider uppercase mt-2">
+              MIN 250 GRAM - MAX 10 KG
             </p>
           </div>
 
@@ -185,7 +346,11 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
               <label className="text-xs font-extrabold text-slate-900">
                 Choose Cut <span className="text-red-500">*</span>
               </label>
-              <button className="text-[10px] font-bold text-[#BA181B] flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowCuttingGuide(true)}
+                className="text-[10px] font-bold text-[#BA181B] hover:text-red-800 transition-colors flex items-center gap-1 cursor-pointer"
+              >
                 <span>View Guide</span>
                 <Info className="w-3 h-3 text-[#BA181B]" />
               </button>
@@ -235,39 +400,6 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
             )}
           </div>
 
-          {/* Choose Preparation Options */}
-          <div>
-            <label className="text-xs font-extrabold text-slate-900 block mb-2">
-              Choose Preparation <span className="text-red-500">*</span>
-            </label>
-
-            <div className="grid grid-cols-3 gap-2">
-              {prepOptions.map((p) => {
-                const isSelected = selectedPrep === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedPrep(p.id)}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center text-center cursor-pointer min-h-[46px] ${
-                      isSelected
-                        ? 'bg-[#BA181B] text-white shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {p.line2 ? (
-                      <>
-                        <span className="leading-tight">{p.line1}</span>
-                        <span className="leading-tight">{p.line2}</span>
-                      </>
-                    ) : (
-                      <span>{p.line1}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Add Notes (Optional) */}
           <div>
             <label className="text-xs font-extrabold text-slate-800 block mb-1">
@@ -295,22 +427,46 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
       </div>
 
       {/* 3. FIXED BOTTOM ACTION BAR (Sticky & Never Scrolls) */}
-      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 py-3 z-30 shadow-lg flex items-center justify-between">
-        <div>
-          <span className="text-[10px] font-semibold text-slate-400 block leading-tight">Total Price</span>
-          <span className="text-base font-black text-[#BA181B]">
-            ₹{totalPrice} <span className="text-xs font-normal text-slate-500">({quantityKg} KG)</span>
-          </span>
+      <div className="shrink-0 bg-white border-t border-slate-200/90 px-4 pt-3 pb-6 z-30 shadow-lg">
+        {/* Row 1: Total Price & Size in a centered box */}
+        <div className="bg-slate-50/80 border border-slate-100 rounded-xl py-2.5 px-4 mb-4 flex items-center justify-center gap-2.5 shadow-inner">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Price:</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-black text-[#BA181B]">₹{totalPrice}</span>
+            <span className="text-[11px] font-bold text-slate-500 lowercase tracking-tight">
+              ({formatQuantity(quantityKg)})
+            </span>
+          </div>
         </div>
 
-        <button
-          onClick={handleAddProductToCart}
-          className="py-2.5 px-6 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white font-bold text-sm rounded-xl shadow-md shadow-red-900/20 transition-all flex items-center gap-2 cursor-pointer"
-        >
-          <ShoppingBag className="w-4 h-4" />
-          <span>Add to Cart</span>
-        </button>
+        {/* Row 2: Buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleAddProductToCart}
+            className="flex-1 py-4 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white font-black text-xs rounded-xl shadow-md shadow-red-900/10 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>ADD TO CART</span>
+          </button>
+          <button
+            onClick={handleBuyNow}
+            className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-xs rounded-xl shadow-md shadow-emerald-900/10 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>BUY NOW</span>
+          </button>
+        </div>
       </div>
+
+      {/* Purchase Agreement Modal */}
+      <PurchaseAgreementModal
+        isOpen={isAgreementOpen}
+        onClose={() => {
+          setIsAgreementOpen(false);
+          setPendingAction(null);
+        }}
+        onConfirm={handleConfirmAgreement}
+      />
     </div>
   );
 };

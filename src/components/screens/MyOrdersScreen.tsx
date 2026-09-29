@@ -8,6 +8,7 @@ import {
   Home,
   Grid,
   User,
+  Share2,
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { AppImage } from '../common/AppImage';
@@ -50,7 +51,37 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
     isOrderDelivered ? 'Completed' : 'Active'
   );
 
-  const orders: Order[] = [
+  const [dynamicOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem('meatghar_admin_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((o: any) => ({
+            id: o.orderNumber || o.id,
+            date: o.date || 'Today',
+            time: o.time || '10:00 AM',
+            status: o.status === 'Delivered' ? 'Completed' : o.status === 'Cancelled' ? 'Cancelled' : 'Active',
+            statusLabel: o.status === 'On the Way' ? 'Out for Delivery' : o.status,
+            totalAmount: `₹${o.total}`,
+            deliveredText: o.status === 'Delivered'
+              ? `Delivered on ${o.date || 'Today'}, ${o.time || '10:30 AM'}`
+              : `Status: ${o.status} • 70-Min SLA Guaranteed`,
+            items: o.items.map((it: any) => ({
+              name: it.name,
+              qty: `${it.quantity} ${it.unit || 'Unit'}`,
+              prep: 'Full Cleaned',
+              price: `₹${it.price * it.quantity}`,
+              image: it.image || '/images/chicken_curry_cut_wide_1790508282856.jpg',
+            })),
+          }));
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  const orders: Order[] = dynamicOrders.length > 0 ? dynamicOrders : [
     {
       id: 'MM10312',
       date: 'Today',
@@ -133,7 +164,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
             <h2 className="text-base font-black text-slate-900 leading-tight">My Orders</h2>
           </div>
 
-          <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+          <HeaderMeatGharLogo />
         </div>
 
         <p className="text-xs text-slate-500 font-medium mb-3">
@@ -282,15 +313,6 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigateTab('orders')}
-          className="flex flex-col items-center gap-0.5 text-[#BA181B] relative cursor-pointer"
-        >
-          <ClipboardList className="w-5 h-5 text-[#BA181B] stroke-[#BA181B] stroke-[2.2]" />
-          <span className="text-[10px] font-bold text-[#BA181B]">Orders</span>
-          <div className="w-7 h-[2.5px] bg-[#BA181B] rounded-full absolute -bottom-1.5" />
-        </button>
-
-        <button
           onClick={() => onNavigateTab('cart')}
           className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 relative cursor-pointer"
         >
@@ -304,11 +326,20 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigateTab('profile')}
+          onClick={() => onNavigateTab('orders')}
+          className="flex flex-col items-center gap-0.5 text-[#BA181B] relative cursor-pointer"
+        >
+          <ClipboardList className="w-5 h-5 text-[#BA181B] stroke-[#BA181B] stroke-[2.2]" />
+          <span className="text-[10px] font-bold text-[#BA181B]">Orders</span>
+          <div className="w-7 h-[2.5px] bg-[#BA181B] rounded-full absolute -bottom-1.5" />
+        </button>
+
+        <button
+          onClick={() => onNavigateTab('share')}
           className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
         >
-          <User className="w-5 h-5 stroke-[1.8]" />
-          <span className="text-[10px] font-medium text-slate-500">Profile</span>
+          <Share2 className="w-5 h-5 stroke-[1.8]" />
+          <span className="text-[10px] font-medium text-slate-500">Share</span>
         </button>
       </div>
     </div>

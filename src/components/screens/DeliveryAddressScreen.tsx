@@ -44,7 +44,7 @@ export const DeliveryAddressScreen: React.FC<DeliveryAddressScreenProps> = ({
           <h2 className="text-lg font-extrabold text-slate-900">Delivery Address</h2>
         </div>
 
-        <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+        <HeaderMeatGharLogo />
       </div>
 
       {/* Main Content */}

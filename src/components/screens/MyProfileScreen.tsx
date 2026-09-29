@@ -20,6 +20,7 @@ import {
   X,
   CheckCircle2,
   ShieldCheck,
+  Share2,
 } from 'lucide-react';
 import { HeaderMeatGharLogo, MeatGharLogo } from '../MeatGharLogo';
 import { useCart } from '../../context/CartContext';
@@ -72,6 +73,13 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
       title: 'My Orders',
       subtitle: 'Track your orders and view history',
       badge: null,
+    },
+    {
+      id: 'referral',
+      icon: Share2,
+      title: 'Refer & Earn (250g Free Meat)',
+      subtitle: 'Share your code & get free meat rewards',
+      badge: 'Free Meat',
     },
     {
       id: 'coupons',
@@ -147,7 +155,7 @@ export const MyProfileScreen: React.FC<MyProfileScreenProps> = ({
             <h2 className="text-lg font-extrabold text-slate-900">My Profile</h2>
           </div>
 
-          <HeaderMeatGharLogo onClick={() => onNavigateOption('home')} />
+          <HeaderMeatGharLogo />
         </div>
         <p className="text-xs text-slate-500 font-normal">
           Manage your account and preferences.

@@ -23,6 +23,7 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
   const [email, setEmail] = useState('rahul@example.com');
   const [password, setPassword] = useState('123456');
   const [confirmPassword, setConfirmPassword] = useState('123456');
+  const [referralCodeInput, setReferralCodeInput] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -36,6 +37,10 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
     }
     if (!phone || phone.length < 5) {
       setErrorMsg('Please enter a valid mobile number');
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      setErrorMsg('Please enter a valid email address');
       return;
     }
     if (password !== confirmPassword) {
@@ -105,7 +110,7 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
             </label>
             <div className="relative flex items-center">
               <div className="absolute left-3 flex items-center gap-1 text-slate-700 font-semibold text-xs pointer-events-none z-10">
-                <span className="text-sm">🇮🇳</span>
+                <img src="/src/assets/images/INDIA.png" alt="India" className="w-5 h-5 object-contain" />
                 <span>+91</span>
                 <span className="text-slate-300 ml-1">|</span>
               </div>
@@ -130,7 +135,7 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
           {/* Email Address */}
           <div>
             <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-              Email Address
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -209,6 +214,31 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
                   {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Referral Code (Optional) */}
+          <div>
+            <label className="text-[11px] font-semibold text-slate-700 flex items-center justify-between mb-1">
+              <span>Referral Code</span>
+              <span className="text-slate-400 font-normal text-[10px]">(Optional)</span>
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                name="user_refcode_no_autofill"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value.toUpperCase())}
+                placeholder="Enter Friend's Code (e.g. RAHUL3210)"
+                className="w-full pl-3.5 pr-10 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400"
+              />
+              {referralCodeInput && (
+                <span className="absolute right-3 text-emerald-600 font-bold text-xs">✓ Valid</span>
+              )}
             </div>
           </div>
 

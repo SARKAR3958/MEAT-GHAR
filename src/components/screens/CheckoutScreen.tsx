@@ -15,6 +15,7 @@ import {
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { GreenTickLottie } from '../GreenTickLottie';
 import { useCart } from '../../context/CartContext';
+import { supabase } from '../../lib/supabase';
 
 interface CheckoutScreenProps {
   onBack: () => void;
@@ -25,7 +26,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   onBack,
   onPlaceOrder,
 }) => {
-  const { totalAmount, subtotal } = useCart();
+  const { totalAmount, subtotal, deliveryFee, cartItems, clearCart } = useCart();
   const [selectedPayment, setSelectedPayment] = useState<'upi' | 'card' | 'netbanking' | 'wallet' | 'cod'>('upi');
   const [isSuccessModal, setIsSuccessModal] = useState(false);
 
@@ -33,7 +34,87 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
 
   const handlePlaceOrderClick = () => {
     setIsSuccessModal(true);
+
+    // Generate Order ID & assemble data
+    const orderId = `MTG-${Math.floor(100000 + Math.random() * 900000)}`;
+    try {
+      const savedUserStr = localStorage.getItem('meatghar_user');
+      const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
+      const savedAddrStr = localStorage.getItem('meatghar_selected_location');
+      const addrObj = savedAddrStr ? JSON.parse(savedAddrStr) : null;
+
+      const orderPayload = {
+        id: orderId,
+        customer_name: userObj.userName || 'Rahul Sharma',
+        customer_phone: userObj.phone || '9876543210',
+        customer_email: userObj.email || 'customer@meatghar.in',
+        delivery_address: addrObj || {
+          address: 'House No. 24, Green Park Road, Sector 10, Noida, UP - 201301',
+          city: 'Noida',
+        },
+        items:
+          cartItems.length > 0
+            ? cartItems.map((item) => ({
+                productId: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                unit: item.weight || '500g',
+                image: item.image,
+              }))
+            : [
+                {
+                  productId: 'prod-1',
+                  name: 'Premium Chicken Curry Cut',
+                  price: 189,
+                  quantity: 2,
+                  unit: '500g',
+                },
+              ],
+        total_amount: displayTotal,
+        subtotal: subtotal || displayTotal,
+        delivery_fee: deliveryFee || 0,
+        discount: 0,
+        payment_method: selectedPayment.toUpperCase(),
+        payment_status: selectedPayment === 'cod' ? 'Pending' : 'Paid',
+        status: 'Preparing',
+      };
+
+      // 1. Sync to Supabase orders table
+      supabase
+        .from('orders')
+        .insert(orderPayload)
+        .then(({ error }) => {
+          if (error) console.warn('Supabase order creation note:', error.message);
+        });
+
+      // 2. Also save to admin orders local storage for immediate visibility
+      const existing = localStorage.getItem('meatghar_admin_orders_v3');
+      const parsedOrders = existing ? JSON.parse(existing) : [];
+      const adminOrderObj = {
+        id: orderId,
+        orderNumber: `#${orderId}`,
+        customerName: orderPayload.customer_name,
+        customerPhone: orderPayload.customer_phone,
+        customerAddress: orderPayload.delivery_address.address || 'Sector 10, Noida',
+        items: orderPayload.items,
+        subtotal: orderPayload.subtotal,
+        deliveryFee: orderPayload.delivery_fee,
+        discount: 0,
+        total: orderPayload.total_amount,
+        paymentMethod: orderPayload.payment_method,
+        paymentStatus: orderPayload.payment_status,
+        status: 'Preparing' as const,
+        orderTime: 'Just now',
+        estimatedDeliveryTime: '30-45 mins',
+      };
+      localStorage.setItem('meatghar_admin_orders_v3', JSON.stringify([adminOrderObj, ...parsedOrders]));
+    } catch (err) {
+      console.warn('Order sync note:', err);
+    }
+
     setTimeout(() => {
+      clearCart();
       onPlaceOrder();
     }, 1800);
   };

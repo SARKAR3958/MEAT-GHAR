@@ -9,6 +9,7 @@ interface LoginScreenProps {
   onLoginSubmit: (phone: string, pass: string) => void;
   onGoogleLogin: () => void;
   onGoToSignUp: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export const SignupScreen: React.FC<LoginScreenProps> = ({
@@ -17,6 +18,7 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
   onLoginSubmit,
   onGoogleLogin,
   onGoToSignUp,
+  onOpenAdmin,
 }) => {
   const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
@@ -74,7 +76,7 @@ export const SignupScreen: React.FC<LoginScreenProps> = ({
             </label>
             <div className="relative flex items-center">
               <div className="absolute left-3 flex items-center gap-1 text-slate-700 font-semibold text-xs pointer-events-none z-10">
-                <span className="text-sm">🇮🇳</span>
+                <img src="/src/assets/images/INDIA.png" alt="India" className="w-5 h-5 object-contain" />
                 <span>+91</span>
                 <span className="text-slate-300 ml-1">|</span>
               </div>

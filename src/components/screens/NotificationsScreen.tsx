@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   User,
   ChevronRight,
+  Share2,
 } from 'lucide-react';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { useCart } from '../../context/CartContext';
@@ -55,7 +56,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             </h2>
           </div>
 
-          <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+          <HeaderMeatGharLogo />
         </div>
         <p className="text-xs text-slate-500 font-normal">
           Stay updated on your orders, offers and more.
@@ -226,11 +227,6 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           <span className="text-[10px] font-medium text-slate-500">Categories</span>
         </button>
 
-        <button onClick={() => onNavigateTab('orders')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
-          <ClipboardList className="w-5 h-5 stroke-[1.8]" />
-          <span className="text-[10px] font-medium text-slate-500">Orders</span>
-        </button>
-
         <button onClick={() => onNavigateTab('cart')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 relative cursor-pointer">
           <ShoppingCart className="w-5 h-5 text-slate-400 stroke-[1.8]" />
           {cartCount > 0 && (
@@ -241,9 +237,14 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           <span className="text-[10px] font-medium text-slate-500">Cart</span>
         </button>
 
-        <button onClick={() => onNavigateTab('profile')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
-          <User className="w-5 h-5 stroke-[1.8]" />
-          <span className="text-[10px] font-medium text-slate-500">Profile</span>
+        <button onClick={() => onNavigateTab('orders')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+          <ClipboardList className="w-5 h-5 stroke-[1.8]" />
+          <span className="text-[10px] font-medium text-slate-500">Orders</span>
+        </button>
+
+        <button onClick={() => onNavigateTab('share')} className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+          <Share2 className="w-5 h-5 stroke-[1.8]" />
+          <span className="text-[10px] font-medium text-slate-500">Share</span>
         </button>
       </div>
     </div>

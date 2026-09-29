@@ -74,7 +74,7 @@ export const MyAddressesScreen: React.FC<MyAddressesScreenProps> = ({
             <h2 className="text-base font-black text-slate-900 leading-tight">My Addresses</h2>
           </div>
 
-          <HeaderMeatGharLogo onClick={() => onNavigateTab('home')} />
+          <HeaderMeatGharLogo />
         </div>
         <p className="text-xs text-slate-500 font-medium">Manage delivery locations for quick ordering.</p>
       </div>

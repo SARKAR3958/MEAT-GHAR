@@ -31,14 +31,26 @@ import { NotificationsScreen } from './components/screens/NotificationsScreen';
 import { HelpSupportScreen } from './components/screens/HelpSupportScreen';
 import { CouponsScreen } from './components/screens/CouponsScreen';
 import { EditProfileScreen } from './components/screens/EditProfileScreen';
+import { ShareScreen } from './components/screens/ShareScreen';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { LocationData } from './types/location';
 import { preloadAllImages } from './utils/preloadAssets';
 import { MeatGharLogo } from './components/MeatGharLogo';
 import { RotateCcw } from 'lucide-react';
 import { CartProvider } from './context/CartContext';
+import { supabase, signInWithGoogle } from './lib/supabase';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>('splash');
+  const isInitialAdmin = typeof window !== 'undefined' && (
+    window.location.pathname.toLowerCase().includes('admin-mtg') ||
+    window.location.pathname.toLowerCase().includes('admin_mtg') ||
+    window.location.hash.toLowerCase().includes('admin-mtg') ||
+    window.location.search.toLowerCase().includes('admin-mtg') ||
+    window.location.pathname.toLowerCase().includes('admin') ||
+    window.location.hash.toLowerCase().includes('admin')
+  );
+
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>(isInitialAdmin ? 'admin_panel' : 'splash');
   const [phoneNumber, setPhoneNumber] = useState('98765 43210');
   const [userName, setUserName] = useState('Rahul Sharma');
   const [userEmail, setUserEmail] = useState('rahul.sharma@example.com');
@@ -46,19 +58,39 @@ export default function App() {
   const [isOrderDelivered, setIsOrderDelivered] = useState(false);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
   const [productOriginScreen, setProductOriginScreen] = useState<ScreenType>('home');
-  const [userLocation, setUserLocation] = useState<LocationData>({
-    address: 'MG Road, Sector 10, Noida, Uttar Pradesh, 201301',
-    lat: 28.5900,
-    lng: 77.3300,
-    road: 'MG Road',
-    suburb: 'Sector 10',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    postcode: '201301',
+  const [categoryOriginScreen, setCategoryOriginScreen] = useState<'home' | 'category_manual'>('home');
+  const [userLocation, setUserLocation] = useState<LocationData>(() => {
+    try {
+      const savedLoc = localStorage.getItem('meatghar_selected_location');
+      if (savedLoc) {
+        return JSON.parse(savedLoc);
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      address: 'MG Road, Sector 10, Noida, Uttar Pradesh, 201301',
+      lat: 28.5900,
+      lng: 77.3300,
+      road: 'MG Road',
+      suburb: 'Sector 10',
+      city: 'Noida',
+      state: 'Uttar Pradesh',
+      postcode: '201301',
+    };
   });
 
+  const handleUpdateLocation = useCallback((newLoc: LocationData) => {
+    setUserLocation(newLoc);
+    try {
+      localStorage.setItem('meatghar_selected_location', JSON.stringify(newLoc));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Track screen navigation history stack for Android hardware/navigation bar back button
-  const historyStackRef = useRef<ScreenType[]>(['splash']);
+  const historyStackRef = useRef<ScreenType[]>([isInitialAdmin ? 'admin_panel' : 'splash']);
   const lastBackPressTimeRef = useRef<number>(0);
   const toastTimeoutRef = useRef<number | null>(null);
   const [showExitToast, setShowExitToast] = useState(false);
@@ -78,6 +110,87 @@ export default function App() {
     } catch {
       // ignore
     }
+
+    // Check URL pathname, hash, or query for /admin-mtg route
+    const checkAdminQuery = () => {
+      const loc = window.location;
+      const fullPath = (loc.pathname + loc.hash + loc.search).toLowerCase();
+      if (
+        fullPath.includes('admin-mtg') ||
+        fullPath.includes('admin_mtg') ||
+        fullPath.includes('/admin') ||
+        fullPath.includes('#admin') ||
+        fullPath.includes('?admin')
+      ) {
+        setCurrentScreen('admin_panel');
+      }
+    };
+
+    checkAdminQuery();
+    window.addEventListener('popstate', checkAdminQuery);
+    window.addEventListener('hashchange', checkAdminQuery);
+
+    // Supabase Auth listener (for Google OAuth callback & session restore)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const uEmail = session.user.email || 'customer@meatghar.in';
+        const metaName =
+          session.user.user_metadata?.full_name || session.user.user_metadata?.name;
+        const uName = metaName || uEmail.split('@')[0] || 'Customer';
+        setUserName(uName);
+        setUserEmail(uEmail);
+        setAuthMethod('google');
+        try {
+          localStorage.setItem(
+            'meatghar_user',
+            JSON.stringify({
+              userName: uName,
+              email: uEmail,
+              phone: session.user.phone || '9876543210',
+              authMethod: 'google',
+              isLoggedIn: true,
+              loginTime: new Date().toISOString(),
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
+    });
+
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const uEmail = session.user.email || 'customer@meatghar.in';
+        const metaName =
+          session.user.user_metadata?.full_name || session.user.user_metadata?.name;
+        const uName = metaName || uEmail.split('@')[0] || 'Customer';
+        setUserName(uName);
+        setUserEmail(uEmail);
+        setAuthMethod('google');
+        try {
+          localStorage.setItem(
+            'meatghar_user',
+            JSON.stringify({
+              userName: uName,
+              email: uEmail,
+              phone: session.user.phone || '9876543210',
+              authMethod: 'google',
+              isLoggedIn: true,
+              loginTime: new Date().toISOString(),
+            })
+          );
+        } catch {
+          // ignore
+        }
+        setCurrentScreen('home');
+      }
+    });
+
+    return () => {
+      window.removeEventListener('popstate', checkAdminQuery);
+      window.removeEventListener('hashchange', checkAdminQuery);
+      authSub.subscription.unsubscribe();
+    };
   }, []);
 
   // Native app exit handler
@@ -143,7 +256,8 @@ export default function App() {
   const navigateScreen = useCallback((nextScreen: ScreenType) => {
     if (nextScreen === currentScreen) return;
     try {
-      window.history.pushState({ screen: nextScreen }, '');
+      const targetUrl = nextScreen === 'admin_panel' ? '/admin-mtg' : '/';
+      window.history.pushState({ screen: nextScreen }, '', targetUrl);
     } catch {
       // ignore
     }
@@ -152,6 +266,51 @@ export default function App() {
   }, [currentScreen]);
 
   const goBack = useCallback(() => {
+    if (currentScreen === 'product_details') {
+      if (productOriginScreen === 'home') {
+        navigateScreen('home');
+        return;
+      } else if (productOriginScreen === 'category') {
+        navigateScreen('category');
+        return;
+      } else if (productOriginScreen === 'search') {
+        navigateScreen('search');
+        return;
+      } else {
+        navigateScreen('home');
+        return;
+      }
+    }
+
+    if (currentScreen === 'category') {
+      if (categoryOriginScreen === 'home') {
+        navigateScreen('home');
+        return;
+      } else if (selectedCategoryName) {
+        setSelectedCategoryName(null);
+        return;
+      } else {
+        navigateScreen('home');
+        return;
+      }
+    }
+
+    if (
+      currentScreen === 'search' ||
+      currentScreen === 'delivery_address' ||
+      currentScreen === 'location_search' ||
+      currentScreen === 'address_form' ||
+      currentScreen === 'help_support' ||
+      currentScreen === 'notifications'
+    ) {
+      if (historyStackRef.current.length > 1) {
+        window.history.back();
+      } else {
+        navigateScreen('home');
+      }
+      return;
+    }
+
     if (historyStackRef.current.length > 1) {
       window.history.back();
     } else if (currentScreen !== 'home') {
@@ -159,7 +318,14 @@ export default function App() {
     } else {
       handleRootBack();
     }
-  }, [currentScreen, handleRootBack, navigateScreen]);
+  }, [
+    currentScreen,
+    categoryOriginScreen,
+    handleRootBack,
+    navigateScreen,
+    productOriginScreen,
+    selectedCategoryName,
+  ]);
 
   useEffect(() => {
     preloadAllImages();
@@ -233,8 +399,10 @@ export default function App() {
   const handleTabNavigation = (tab: string, categoryName?: string) => {
     if (categoryName) {
       setSelectedCategoryName(categoryName);
+      setCategoryOriginScreen('home');
     } else if (tab === 'category' || tab === 'categories') {
       setSelectedCategoryName(null);
+      setCategoryOriginScreen('category_manual');
     }
 
     switch (tab) {
@@ -248,12 +416,22 @@ export default function App() {
       case 'search':
         navigateScreen('search');
         break;
+      case 'location':
+      case 'location_search':
+        navigateScreen('location_search');
+        break;
       case 'cart':
         navigateScreen('cart');
+        break;
+      case 'checkout':
+        navigateScreen('checkout');
         break;
       case 'orders':
       case 'my_orders':
         navigateScreen('my_orders');
+        break;
+      case 'share':
+        navigateScreen('share');
         break;
       case 'profile':
       case 'my_profile':
@@ -291,6 +469,14 @@ export default function App() {
         break;
       case 'notifications':
         navigateScreen('notifications');
+        break;
+      case 'referral':
+      case 'share':
+        navigateScreen('share');
+        break;
+      case 'admin_panel':
+      case 'admin':
+        navigateScreen('admin_panel');
         break;
       case 'support':
         navigateScreen('help_support');
@@ -384,27 +570,33 @@ export default function App() {
                 historyStackRef.current = ['home'];
                 navigateScreen('home');
               }}
-              onGoogleLogin={() => {
-                const gUser = {
-                  phone: phoneNumber || '9876543210',
-                  userName: 'Rahul Sharma',
-                  email: 'rahul.google@gmail.com',
-                  authMethod: 'google',
-                  isLoggedIn: true,
-                  loginTime: new Date().toISOString(),
-                };
-                setAuthMethod('google');
-                setUserName('Rahul Sharma');
-                setUserEmail('rahul.google@gmail.com');
+              onGoogleLogin={async () => {
                 try {
-                  localStorage.setItem('meatghar_user', JSON.stringify(gUser));
-                } catch {
-                  // ignore
+                  await signInWithGoogle();
+                } catch (err: unknown) {
+                  console.warn('Google login popup/notice:', err);
+                  const gUser = {
+                    phone: phoneNumber || '9876543210',
+                    userName: 'Rahul Sharma',
+                    email: 'rahul.google@gmail.com',
+                    authMethod: 'google' as const,
+                    isLoggedIn: true,
+                    loginTime: new Date().toISOString(),
+                  };
+                  setAuthMethod('google');
+                  setUserName('Rahul Sharma');
+                  setUserEmail('rahul.google@gmail.com');
+                  try {
+                    localStorage.setItem('meatghar_user', JSON.stringify(gUser));
+                  } catch {
+                    // ignore
+                  }
+                  historyStackRef.current = ['home'];
+                  navigateScreen('home');
                 }
-                historyStackRef.current = ['home'];
-                navigateScreen('home');
               }}
               onGoToSignUp={() => navigateScreen('signup_form')}
+              onOpenAdmin={() => navigateScreen('admin_panel')}
             />
           )}
 
@@ -498,6 +690,10 @@ export default function App() {
                 setProductOriginScreen('home');
                 navigateScreen('product_details');
               }}
+              userLocation={userLocation}
+              onUpdateLocation={handleUpdateLocation}
+              onOpenMapPicker={() => navigateScreen('location_search')}
+              onAddNewAddress={() => navigateScreen('address_form')}
             />
           )}
 
@@ -505,9 +701,10 @@ export default function App() {
           {currentScreen === 'category' && (
             <CategoryListScreen
               initialCategory={selectedCategoryName}
+              fromOrigin={categoryOriginScreen}
               onBack={() => goBack()}
               onSelectProduct={() => {
-                setProductOriginScreen('category');
+                setProductOriginScreen(categoryOriginScreen === 'home' ? 'home' : 'category');
                 navigateScreen('product_details');
               }}
               onNavigateTab={handleTabNavigation}
@@ -531,6 +728,7 @@ export default function App() {
             <ProductDetailsScreen
               onBack={() => goBack()}
               onAddToCart={() => navigateScreen('cart')}
+              onNavigateTab={handleTabNavigation}
             />
           )}
 
@@ -698,6 +896,23 @@ export default function App() {
               onBack={() => goBack()}
               onNavigateTab={handleTabNavigation}
               onApplyCoupon={() => navigateScreen('cart')}
+            />
+          )}
+
+          {/* Screen 31: Share & Earn */}
+          {currentScreen === 'share' && (
+            <ShareScreen
+              userName={userName}
+              userPhone={phoneNumber}
+              onBack={() => goBack()}
+              onNavigateTab={handleTabNavigation}
+            />
+          )}
+
+          {/* Screen 32: Meat Ghar Admin Panel */}
+          {currentScreen === 'admin_panel' && (
+            <AdminPanel
+              onSwitchToCustomerApp={() => navigateScreen('home')}
             />
           )}
         </motion.div>

@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   ClipboardList,
   User,
+  Share2,
   SlidersHorizontal,
   ChevronRight,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { useCart } from '../../context/CartContext';
 
 interface CategoryListScreenProps {
   initialCategory?: string | null;
+  fromOrigin?: 'home' | 'category_manual';
   onBack: () => void;
   onSelectProduct: (productName: string) => void;
   onNavigateTab: (tab: string) => void;
@@ -512,6 +514,7 @@ export const ALL_PRODUCTS: CategoryProduct[] = [
 
 export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
   initialCategory,
+  fromOrigin = 'category_manual',
   onBack,
   onSelectProduct,
   onNavigateTab,
@@ -564,8 +567,10 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
-                if (selectedCategory) {
-                  setSelectedCategory(null); // Back to 3-per-row categories grid!
+                if (fromOrigin === 'home') {
+                  onBack(); // Directly back to Home when opened from Home
+                } else if (selectedCategory) {
+                  setSelectedCategory(null); // Back to categories grid when manual
                 } else {
                   onBack(); // Back to Home
                 }
@@ -743,31 +748,22 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
                     </div>
 
                     {/* Quantity or Add Button */}
-                    {qty > 0 ? (
-                      <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-2 py-1">
-                        <button
-                          onClick={(e) => handleRemoveQuantity(p.id, e)}
-                          className="w-5 h-5 rounded-lg bg-white text-[#BA181B] font-black flex items-center justify-center shadow-2xs hover:bg-red-100 cursor-pointer"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-xs font-extrabold text-[#BA181B]">{qty}</span>
-                        <button
-                          onClick={(e) => handleAddQuantity(p, e)}
-                          className="w-5 h-5 rounded-lg bg-[#BA181B] text-white font-black flex items-center justify-center shadow-2xs hover:bg-red-800 cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="flex flex-col gap-1.5 mt-auto">
                       <button
-                        onClick={(e) => handleAddQuantity(p, e)}
-                        className="w-full py-1.5 bg-[#BA181B] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                        onClick={() => onSelectProduct(p.name)}
+                        className="w-full py-2 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
                       >
-                        <ShoppingCart className="w-3.5 h-3.5 text-white" />
+                        <Plus className="w-3 h-3 text-white stroke-[2.5]" />
                         <span>Add</span>
                       </button>
-                    )}
+                      <button
+                        onClick={() => onSelectProduct(p.name)}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                      >
+                        <ShoppingCart className="w-3 h-3 text-white stroke-[2.5]" />
+                        <span>Buy Now</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -797,15 +793,6 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
           <div className="w-7 h-[2.5px] bg-[#BA181B] rounded-full absolute -bottom-1.5" />
         </button>
 
-        {/* ORDERS */}
-        <button
-          onClick={() => onNavigateTab('my_orders')}
-          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-        >
-          <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="text-[10px] font-semibold text-slate-500">Orders</span>
-        </button>
-
         {/* CART */}
         <button
           onClick={() => onNavigateTab('cart')}
@@ -820,13 +807,22 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
           <span className="text-[10px] font-semibold text-slate-500">Cart</span>
         </button>
 
-        {/* PROFILE */}
+        {/* ORDERS */}
         <button
-          onClick={() => onNavigateTab('my_profile')}
+          onClick={() => onNavigateTab('my_orders')}
           className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
-          <User className="w-5 h-5 text-slate-400 stroke-[1.8]" />
-          <span className="text-[10px] font-semibold text-slate-500">Profile</span>
+          <ClipboardList className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+          <span className="text-[10px] font-semibold text-slate-500">Orders</span>
+        </button>
+
+        {/* SHARE */}
+        <button
+          onClick={() => onNavigateTab('share')}
+          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        >
+          <Share2 className="w-5 h-5 text-slate-400 stroke-[1.8]" />
+          <span className="text-[10px] font-semibold text-slate-500">Share</span>
         </button>
       </div>
     </div>

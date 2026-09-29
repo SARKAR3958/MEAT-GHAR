@@ -128,7 +128,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
               <div className="flex-1 flex items-center justify-between text-xs">
                 <div>
                   <p className="font-bold text-slate-900">Fresh Chicken Curry Cut</p>
-                  <p className="text-[10px] text-slate-500">1 KG &bull; Cleaned</p>
+                  <p className="text-[10px] text-slate-500">1 KG &bull; Curry Cut</p>
                 </div>
                 <span className="font-extrabold text-slate-900">₹420</span>
               </div>
@@ -144,7 +144,7 @@ export const OrderDetailsScreen: React.FC<OrderDetailsScreenProps> = ({
               <div className="flex-1 flex items-center justify-between text-xs">
                 <div>
                   <p className="font-bold text-slate-900">Mutton Boneless</p>
-                  <p className="text-[10px] text-slate-500">500 G &bull; Cleaned</p>
+                  <p className="text-[10px] text-slate-500">500 G &bull; Curry Cut</p>
                 </div>
                 <span className="font-extrabold text-slate-900">₹340</span>
               </div>
