@@ -1,12 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
 // User's Supabase credentials (with fallback to hardcoded user project credentials)
+const getMetaEnv = (key: string): string => {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      return import.meta.env[key];
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+};
+
 export const SUPABASE_URL =
-  (import.meta.env.VITE_SUPABASE_URL as string) ||
+  getMetaEnv('VITE_SUPABASE_URL') ||
   'https://hwcoxwwbzxfvxuppnvni.supabase.co';
 
 export const SUPABASE_ANON_KEY =
-  (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+  getMetaEnv('VITE_SUPABASE_ANON_KEY') ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3Y294d3dienhmdnh1cHBudm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NzUwODEsImV4cCI6MjEwNjI1MTA4MX0.-nUvI2WItVU7Em3w1gLFBZQcqAslBTuI34INrL5DBhE';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

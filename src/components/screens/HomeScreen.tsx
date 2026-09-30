@@ -20,6 +20,7 @@ import {
   Flame,
   Clock,
   Sparkles,
+  Zap,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
@@ -27,7 +28,7 @@ import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
 import { LocationSelectModal } from '../common/LocationSelectModal';
-import { LocationData } from '../../types/location';
+import { LocationData, SavedAddress } from '../../types/location';
 import { supabase } from '../../lib/supabase';
 
 interface HomeScreenProps {
@@ -37,6 +38,7 @@ interface HomeScreenProps {
   onUpdateLocation?: (loc: LocationData) => void;
   onOpenMapPicker?: () => void;
   onAddNewAddress?: () => void;
+  onEditAddress?: (address: SavedAddress) => void;
 }
 
 interface BannerItem {
@@ -192,6 +194,35 @@ const DEFAULT_FLASH_DEALS: FlashDealItem[] = [
   },
 ];
 
+export const getCleanProductImage = (name: string, currentImage?: string) => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('goat') || n.includes('mutton') || n.includes('lamb')) {
+    return '/src/assets/images/mutton_boneless_wide_1790508301717.jpg';
+  }
+  if (n.includes('rohu') || n.includes('fish') || n.includes('surmai') || n.includes('pomfret')) {
+    return '/src/assets/images/rohu_fish_wide_1790508321588.jpg';
+  }
+  if (n.includes('prawn') || n.includes('seafood') || n.includes('shrimp')) {
+    return '/src/assets/images/cat_prawns_seafood_1790508815698.jpg';
+  }
+  if (n.includes('egg')) {
+    return '/src/assets/images/cat_eggs_1790504403080.jpg';
+  }
+  if (n.includes('tikka') || n.includes('kebab') || n.includes('ready') || n.includes('marinated')) {
+    return '/src/assets/images/cat_ready_to_cook_1790507566251.jpg';
+  }
+  if (n.includes('fillet') || n.includes('breast')) {
+    return '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg';
+  }
+  if (n.includes('chicken')) {
+    return '/src/assets/images/cat_chicken_1790504356265.jpg';
+  }
+  if (!currentImage || currentImage.includes('unsplash') || currentImage.includes('vinyl') || currentImage.includes('photo-')) {
+    return '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg';
+  }
+  return currentImage;
+};
+
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateTab,
   onSelectProduct,
@@ -199,8 +230,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onUpdateLocation,
   onOpenMapPicker,
   onAddNewAddress,
+  onEditAddress,
 }) => {
-  const { cartCount, addToCart, getItemQuantity } = useCart();
+  const { cartCount, addToCart, getItemQuantity, updateQuantity } = useCart();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [searchVal, setSearchVal] = useState('');
   const [addedPopup, setAddedPopup] = useState<string | null>(null);
@@ -391,11 +423,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           .order('display_order', { ascending: true });
 
         if (!catErr && catData && catData.length > 0) {
-          setCategories(catData.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            image: c.image || '/src/assets/images/cat_chicken_1790504356265.jpg'
-          })));
+          setCategories(catData.map((c: any) => {
+            let img = c.image;
+            const nameLower = c.name.toLowerCase();
+            if (nameLower.includes('chicken')) {
+              img = '/src/assets/images/cat_chicken_1790504356265.jpg';
+            } else if (nameLower.includes('mutton') || nameLower.includes('tender') || nameLower.includes('meat')) {
+              img = '/src/assets/images/cat_mutton_1790504374485.jpg';
+            } else if (nameLower.includes('fish') || nameLower.includes('sea') || nameLower.includes('seafood')) {
+              img = '/src/assets/images/cat_fish_1790504389877.jpg';
+            } else if (nameLower.includes('egg') || nameLower.includes('farm')) {
+              img = '/src/assets/images/cat_eggs_1790504403080.jpg';
+            } else if (nameLower.includes('ready') || nameLower.includes('cook') || nameLower.includes('marinated')) {
+              img = '/src/assets/images/cat_ready_to_cook_1790507566251.jpg';
+            }
+            return {
+              id: c.id,
+              name: c.name,
+              image: img || '/src/assets/images/cat_chicken_1790504356265.jpg'
+            };
+          }));
         }
 
         const { data: prodData, error: prodErr } = await supabase
@@ -405,17 +452,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           .limit(6);
 
         if (!prodErr && prodData && prodData.length > 0) {
-          setPopularProducts(prodData.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: Number(p.price),
-            priceUnit: `₹${p.price} / ${p.weight || '500g'}`,
-            originalPrice: p.original_price ? Number(p.original_price) : undefined,
-            rating: Number(p.rating || 4.8),
-            reviews: String(p.rating_count || 140),
-            discount: p.badge || (p.original_price ? `${Math.round(((p.original_price - p.price) / p.original_price) * 100)}% OFF` : undefined),
-            image: p.image || '/src/assets/images/chicken_curry_cut_wide_1790508282856.jpg'
-          })));
+          setPopularProducts(prodData.map((p: any) => {
+            const cleanImg = getCleanProductImage(p.name, p.image);
+            let cleanDiscount: string | undefined = undefined;
+            if (p.original_price && Number(p.original_price) > Number(p.price)) {
+              cleanDiscount = `${Math.round(((Number(p.original_price) - Number(p.price)) / Number(p.original_price)) * 100)}% OFF`;
+            } else if (p.badge && (p.badge.includes('%') || p.badge.toLowerCase().includes('off')) && !p.badge.toLowerCase().includes('bestseller') && !p.badge.toLowerCase().includes('popular') && !p.badge.toLowerCase().includes('fresh')) {
+              cleanDiscount = p.badge;
+            }
+            return {
+              id: p.id,
+              name: p.name,
+              price: Number(p.price),
+              priceUnit: `₹${p.price} / ${p.weight || '500g'}`,
+              originalPrice: p.original_price ? Number(p.original_price) : undefined,
+              rating: Number(p.rating || 4.8),
+              reviews: String(p.rating_count || 140),
+              discount: cleanDiscount,
+              image: cleanImg
+            };
+          }));
         }
       } catch (err) {
         console.warn('Supabase fetch error for categories or products:', err);
@@ -458,7 +514,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
           {/* Center: Location selector */}
           <div
-            onClick={() => setIsLocationModalOpen(true)}
+            onClick={() => {
+              try {
+                const cached = localStorage.getItem('meatghar_user_addresses');
+                if (cached) {
+                  const parsed = JSON.parse(cached);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setIsLocationModalOpen(true);
+                    return;
+                  }
+                }
+              } catch {
+                // ignore
+              }
+              if (onAddNewAddress) {
+                onAddNewAddress();
+              } else {
+                setIsLocationModalOpen(true);
+              }
+            }}
             className="flex items-start gap-1.5 cursor-pointer border border-transparent hover:border-[#BA181B]/40 rounded-xl px-1.5 py-0.5 transition-all duration-150 active:scale-95 group"
           >
             <MapPin className="w-4 h-4 text-[#BA181B] shrink-0 mt-0.5 stroke-[2] group-hover:scale-110 transition-transform" />
@@ -648,14 +722,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </button>
           </div>
 
-          <div className="flex items-start justify-between gap-1 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-start justify-start gap-3.5 overflow-x-auto no-scrollbar py-1">
             {categories.map((c) => (
               <div
                 key={c.id}
                 onClick={() => onNavigateTab('category', c.name)}
-                className="flex flex-col items-center gap-1.5 cursor-pointer group shrink-0 w-[62px]"
+                className="flex flex-col items-center gap-1.5 cursor-pointer group shrink-0 w-[78px]"
               >
-                <div className="w-[56px] h-[56px] rounded-full bg-[#FDF2F2] border border-[#FEE2E2] p-0.5 shadow-2xs overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
+                <div className="w-[66px] h-[66px] rounded-full bg-[#FDF2F2] border border-[#FEE2E2] p-0.5 shadow-2xs overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
                   <img
                     src={c.image}
                     alt={c.name}
@@ -666,7 +740,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     className="w-full h-full object-cover rounded-full"
                   />
                 </div>
-                <span className="text-[11px] font-bold text-slate-800 text-center leading-tight line-clamp-1">
+                <span className="text-[11.5px] font-bold text-slate-800 text-center leading-tight line-clamp-2 h-[34px] flex items-start justify-center">
                   {c.name}
                 </span>
               </div>
@@ -704,12 +778,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   100,
                   Math.round(((deal.totalStock - deal.stockLeft) / deal.totalStock) * 100)
                 );
+                const dealQty = getItemQuantity(deal.id) || getItemQuantity(deal.productName);
 
                 return (
                   <div
                     key={deal.id}
                     onClick={() => onNavigateTab('category', deal.category)}
-                    className="w-[210px] shrink-0 bg-white rounded-2xl p-2.5 border border-slate-200 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    className="w-[210px] shrink-0 bg-white rounded-2xl p-2.5 border border-slate-300 shadow-xs hover:shadow-md hover:border-[#BA181B]/40 transition-all cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       <div className="w-full h-[110px] rounded-xl overflow-hidden bg-slate-100 relative mb-2">
@@ -722,7 +797,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                           }}
                           className="w-full h-full object-cover"
                         />
-                        <span className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
+                        <span className="absolute top-1.5 left-1.5 bg-[#BA181B] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
                           <Flame className="w-2.5 h-2.5 fill-white" />
                           <span>{deal.discountPercentage}</span>
                         </span>
@@ -737,7 +812,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       </h3>
 
                       <div className="flex items-baseline gap-1.5 mt-1">
-                        <span className="text-sm font-black text-red-600">₹{deal.price}</span>
+                        <span className="text-sm font-black text-[#BA181B]">₹{deal.price}</span>
                         <span className="text-[10px] text-slate-400 line-through">₹{deal.originalPrice}</span>
                         <span className="text-[9.5px] text-slate-400">/{deal.unit}</span>
                       </div>
@@ -750,32 +825,68 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         </div>
                         <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-red-500 to-amber-500 rounded-full"
+                            className="h-full bg-gradient-to-r from-[#BA181B] to-amber-500 rounded-full"
                             style={{ width: `${percentClaimed}%` }}
                           />
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          id: deal.id,
-                          name: deal.productName,
-                          price: deal.price,
-                          originalPrice: deal.originalPrice,
-                          image: deal.image,
-                          quantity: 1,
-                        });
-                        setAddedPopup(deal.productName);
-                        setTimeout(() => setAddedPopup(null), 1800);
-                      }}
-                      className="mt-2.5 w-full py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-[10.5px] rounded-xl flex items-center justify-center gap-1 shadow-xs transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
-                      <span>Add Deal</span>
-                    </button>
+                    <div className="mt-2.5">
+                      {dealQty === 0 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToCart({
+                              id: deal.id,
+                              name: deal.productName,
+                              price: deal.price,
+                              originalPrice: deal.originalPrice,
+                              image: deal.image,
+                              quantity: 1,
+                            });
+                            setAddedPopup(deal.productName);
+                            setTimeout(() => setAddedPopup(null), 1800);
+                          }}
+                          className="w-full py-1.5 bg-[#BA181B] hover:bg-red-800 active:scale-95 text-white font-bold text-[10.5px] rounded-xl flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3 stroke-[2.5]" />
+                          <span>Add Deal</span>
+                        </button>
+                      ) : (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full py-1 bg-[#BA181B] text-white rounded-xl flex items-center justify-between px-2 shadow-2xs"
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(deal.id, -1);
+                            }}
+                            className="w-6 h-6 rounded-lg bg-black/15 hover:bg-black/25 active:scale-90 flex items-center justify-center cursor-pointer transition-transform"
+                            title="Decrease"
+                          >
+                            <Minus className="w-3 h-3 text-white stroke-[3]" />
+                          </button>
+                          <span className="font-black text-xs text-white px-2 select-none">
+                            {dealQty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(deal.id, 1);
+                            }}
+                            className="w-6 h-6 rounded-lg bg-black/15 hover:bg-black/25 active:scale-90 flex items-center justify-center cursor-pointer transition-transform"
+                            title="Increase"
+                          >
+                            <Plus className="w-3 h-3 text-white stroke-[3]" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -784,9 +895,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
 
         {/* POPULAR PRODUCTS */}
-        <div className="px-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-black text-[#111827] tracking-tight">Popular Today</h2>
+        <div className="px-2.5">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h2 className="text-sm font-bold text-[#111827] tracking-tight">Popular Today</h2>
             <button
               onClick={() => onNavigateTab('category')}
               className="text-xs font-bold text-[#BA181B] flex items-center gap-0.5 cursor-pointer hover:underline"
@@ -796,59 +907,66 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {popularProducts.map((p) => {
+              const qty = getItemQuantity(p.id) || getItemQuantity(p.name);
               return (
                 <div
                   key={p.id}
                   onClick={() => onSelectProduct(p.name)}
-                  className="bg-white rounded-2xl p-2.5 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                  className="bg-white rounded-2xl p-2.5 border border-slate-300 shadow-xs hover:shadow-md hover:border-[#BA181B]/50 transition-all cursor-pointer flex flex-col justify-between"
                 >
                   <div>
-                    <div className="w-full h-[115px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
+                    {/* Top Image with Badges */}
+                    <div className="w-full h-[120px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
                       <img
-                        src={p.image}
+                        src={getCleanProductImage(p.name, p.image)}
                         alt={p.name}
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src =
-                            'https://images.unsplash.com/photo-1544025162-d76694265947?w=300&auto=format&fit=crop&q=80';
+                            getCleanProductImage(p.name);
                         }}
                         className="w-full h-full object-cover"
                       />
-                      <span className="absolute top-1.5 left-1.5 bg-[#A8071A] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xs">
-                        {p.discount}
-                      </span>
-                      <span className="absolute top-1.5 right-1.5 bg-white/90 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
-                        <Leaf className="w-2.5 h-2.5 text-emerald-600 fill-emerald-600" />
+                      {/* Top-right: Green pill badge Fresh only */}
+                      <span className="absolute top-2 right-2 bg-[#16A34A] text-white text-[7.5px] font-bold px-1.5 py-0.5 rounded-full shadow-xs flex items-center justify-center">
                         Fresh
                       </span>
                     </div>
 
-                    <h3 className="text-xs font-black text-slate-900 line-clamp-1 mb-0.5">
+                    {/* Title */}
+                    <h3 className="text-[11.5px] font-semibold text-slate-800 line-clamp-1 mb-1 leading-tight">
                       {p.name}
                     </h3>
-                    <p className="text-xs font-extrabold text-[#A8071A]">{p.priceUnit}</p>
-
-                    <div className="flex items-center justify-between mt-1 text-[10px]">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        <span className="font-bold text-slate-700">{p.rating}</span>
-                        <span className="text-slate-400">({p.reviews})</span>
-                      </div>
-                      <span className="text-emerald-700 font-bold flex items-center gap-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        In Stock
-                      </span>
+                    {/* Price */}
+                    <div className="mb-1">
+                      <p className="text-xs font-black text-[#BA181B]">{p.priceUnit}</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 mt-2.5">
+                  {/* Add Button & Buy Now Button (Both route to Product Details Screen) */}
+                  <div className="mt-2.5 space-y-1.5">
                     <button
-                      onClick={(e) => handleAddToCart(e, p)}
-                      className="w-full py-2 rounded-xl bg-[#A8071A] hover:bg-red-800 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProduct(p.name);
+                      }}
+                      className="w-full py-1.5 bg-[#BA181B] hover:bg-red-800 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                     >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
+                      <ShoppingCart className="w-3.5 h-3.5 fill-white/20 stroke-[2.2]" />
                       <span>Add</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProduct(p.name);
+                      }}
+                      className="w-full py-1.5 bg-[#16A34A] hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-white/20 stroke-[2.2]" />
+                      <span>Buy Now</span>
                     </button>
                   </div>
                 </div>
@@ -914,18 +1032,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onClose={() => setIsLocationModalOpen(false)}
           currentLocation={
             userLocation || {
-              address: 'Flat No. 402, Block B, Green Valley Heights, MG Road, Sector 10, Noida, UP - 201301',
-              lat: 28.5900,
-              lng: 77.3300,
-              suburb: 'Sector 10',
-              city: 'Noida',
-              state: 'Uttar Pradesh',
-              postcode: '201301',
+              address: 'Select Delivery Location',
+              lat: 26.1445,
+              lng: 91.7362,
+              suburb: 'Boko',
+              city: 'Guwahati',
+              state: 'Assam',
+              postcode: '781123',
             }
           }
           onSelectLocation={(loc) => {
             if (onUpdateLocation) onUpdateLocation(loc);
           }}
+          onAddNewAddress={onAddNewAddress}
+          onEditAddress={onEditAddress}
         />
       )}
     </div>

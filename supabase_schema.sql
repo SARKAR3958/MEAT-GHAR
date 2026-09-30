@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8.5. USER PROFILES TABLE (Maps phone numbers to authenticating emails)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id TEXT,
+    phone TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 9. USER WALLETS TABLE
 CREATE TABLE IF NOT EXISTS public.user_wallets (
     user_id TEXT PRIMARY KEY,
@@ -174,6 +183,7 @@ ALTER TABLE public.flash_deals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 
@@ -209,6 +219,9 @@ CREATE POLICY "Allow all user_wallets" ON public.user_wallets FOR ALL USING (tru
 
 -- Wallet Transactions:
 CREATE POLICY "Allow all wallet_transactions" ON public.wallet_transactions FOR ALL USING (true) WITH CHECK (true);
+
+-- User Profiles:
+CREATE POLICY "Allow all profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 -- ==============================================================================
 -- INITIAL SEED DATA (Runs only if tables are empty)

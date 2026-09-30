@@ -8,6 +8,7 @@ interface SignUpFormScreenProps {
     fullName: string;
     phone: string;
     email: string;
+    password?: string;
   }) => void;
   onGoogleLogin: () => void;
   onGoToLogin: () => void;
@@ -18,11 +19,11 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
   onGoogleLogin,
   onGoToLogin,
 }) => {
-  const [fullName, setFullName] = useState('Rahul Sharma');
-  const [phone, setPhone] = useState('98765 43210');
-  const [email, setEmail] = useState('rahul@example.com');
-  const [password, setPassword] = useState('123456');
-  const [confirmPassword, setConfirmPassword] = useState('123456');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [referralCodeInput, setReferralCodeInput] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
@@ -31,16 +32,25 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) {
+    const trimmedName = fullName.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || trimmedName.length < 2) {
       setErrorMsg('Please enter your full name');
       return;
     }
-    if (!phone || phone.length < 5) {
-      setErrorMsg('Please enter a valid mobile number');
+    const cleanDigits = trimmedPhone.replace(/\D/g, '');
+    if (cleanDigits.length !== 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number');
       return;
     }
-    if (!email || !email.includes('@')) {
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setErrorMsg('Please enter a valid email address');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -48,7 +58,12 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
       return;
     }
     setErrorMsg('');
-    onSignUpSubmit({ fullName, phone, email });
+    onSignUpSubmit({
+      fullName: trimmedName,
+      phone: cleanDigits,
+      email: trimmedEmail,
+      password,
+    });
   };
 
   return (
@@ -98,7 +113,7 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
               data-form-type="other"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Rahul Sharma"
+              placeholder="Enter full name"
               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
             />
           </div>
@@ -125,7 +140,8 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
                 data-1p-ignore="true"
                 data-form-type="other"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                maxLength={10}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 placeholder="Enter 10 digit number"
                 className="w-full pl-20 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
               />
@@ -149,7 +165,7 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
               data-form-type="other"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. rahul@example.com"
+              placeholder="Enter email address"
               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:border-[#A8071A] focus:ring-1 focus:ring-[#A8071A] transition-all shadow-2xs"
             />
           </div>
@@ -254,45 +270,11 @@ export const SignUpFormScreen: React.FC<SignUpFormScreenProps> = ({
           </button>
         </form>
 
-        {/* Divider with 'OR' */}
-        <div className="relative my-3 flex items-center justify-center">
-          <div className="border-t border-slate-200 w-full" />
-          <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider absolute">
-            OR
-          </span>
-        </div>
-
-        {/* Google Login Button */}
-        <button
-          type="button"
-          onClick={onGoogleLogin}
-          className="w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-            />
-          </svg>
-          <span>Continue with Google</span>
-        </button>
-
         {/* Already have an account? Login Link */}
-        <p className="text-center text-xs text-slate-500 mt-2 font-medium">
+        <p className="text-center text-xs text-slate-500 mt-4 font-medium">
           Already have an account?{' '}
           <button
+            type="button"
             onClick={onGoToLogin}
             className="text-[#A8071A] font-extrabold hover:underline cursor-pointer ml-0.5"
           >

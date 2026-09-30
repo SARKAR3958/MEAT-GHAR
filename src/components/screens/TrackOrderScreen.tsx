@@ -27,9 +27,30 @@ export const TrackOrderScreen: React.FC<TrackOrderScreenProps> = ({
   // Step state: 1 = Confirmed, 2 = Packed (after 10m), 3 = On Route (after 10m), 4 = Delivered
   const [currentStep] = useState<1 | 2 | 3 | 4>(3);
   const [isDelivered] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState('Your saved delivery address');
+
+  React.useEffect(() => {
+    try {
+      const co = localStorage.getItem('meatghar_checkout_address');
+      if (co) {
+        const parsed = JSON.parse(co);
+        if (parsed.address) {
+          setDeliveryAddress(parsed.address);
+          return;
+        }
+      }
+      const loc = localStorage.getItem('meatghar_selected_location');
+      if (loc) {
+        const parsed = JSON.parse(loc);
+        if (parsed.address) setDeliveryAddress(parsed.address);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   return (
-    <div className="w-full h-full min-h-[780px] bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none font-sans">
+    <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none font-sans">
       {/* Top Header */}
       <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200 shadow-2xs z-30 shrink-0">
         <div className="flex items-center justify-between">
@@ -209,7 +230,7 @@ export const TrackOrderScreen: React.FC<TrackOrderScreenProps> = ({
             <div>
               <span className="font-extrabold text-slate-900 block">Delivery Address:</span>
               <p className="text-slate-600 font-medium leading-relaxed">
-                House No. 24, Green Park Road, Sector 10, Noida, UP - 201301
+                {deliveryAddress}
               </p>
             </div>
           </div>
@@ -217,7 +238,7 @@ export const TrackOrderScreen: React.FC<TrackOrderScreenProps> = ({
       </div>
 
       {/* Fixed Bottom Verification Button / View Summary */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 z-30 shadow-2xl">
+      <div className="shrink-0 bg-white border-t border-slate-200 p-3 z-30 shadow-2xl">
         <button
           onClick={onArrivedOtpView}
           className="w-full py-3.5 px-6 bg-[#BA181B] hover:bg-red-800 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"

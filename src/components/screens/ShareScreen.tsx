@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Share2,
@@ -12,10 +12,12 @@ import {
   ClipboardList,
   ShoppingCart,
   Check,
+  UserCheck,
+  Sparkles,
 } from 'lucide-react';
 
 import { useCart } from '../../context/CartContext';
-import { getUserReferralCode } from '../../utils/referral';
+import { fetchUserReferralData, ReferralProgressData } from '../../lib/referralService';
 
 interface ShareScreenProps {
   onBack: () => void;
@@ -27,14 +29,29 @@ interface ShareScreenProps {
 export const ShareScreen: React.FC<ShareScreenProps> = ({
   onBack,
   onNavigateTab,
-  userName = 'Rahul Sharma',
-  userPhone = '98765 43210',
+  userName = 'Customer',
+  userPhone = '',
 }) => {
   const { cartCount } = useCart();
-  const referralCode = getUserReferralCode(userName, userPhone);
-  const [referralCount] = useState(7); // Mock current referrals
-  const targetCount = 10;
-  const progress = (referralCount / targetCount) * 100;
+  const [referralData, setReferralData] = useState<ReferralProgressData>({
+    referralCode: 'MEATGHAR100',
+    referralCount: 0,
+    targetCount: 10,
+    progressPercent: 0,
+    totalEarnedAmount: 0,
+    referredFriends: [],
+    canClaimReward: false,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserReferralData()
+      .then((data) => {
+        setReferralData(data);
+      })
+      .catch((err) => console.warn('Referral load notice:', err))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const [copied, setCopied] = useState(false);
   const [showClaimForm, setShowClaimForm] = useState(false);
@@ -42,29 +59,29 @@ export const ShareScreen: React.FC<ShareScreenProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
-    phone: '',
+    phone: userPhone,
     address: '',
   });
 
   const handleShare = async () => {
+    const text = `Hey! Use my referral code *${referralData.referralCode}* to order fresh 100% Halal meat on Meat Ghar in 70 mins. Sign up now!`;
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Meat Ghar - Fresh Meat Delivered',
-          text: `Hey! Use my referral code ${referralCode} to get 250g free meat on Meat Ghar. Download now!`,
+          text,
           url: window.location.href,
         });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // user cancelled or failed
       }
     } else {
       handleCopy();
-      alert('Referral link copied to clipboard!');
     }
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(referralCode);
+    navigator.clipboard.writeText(referralData.referralCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -72,232 +89,244 @@ export const ShareScreen: React.FC<ShareScreenProps> = ({
   const handleSubmitClaim = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
-    }, 1500);
+    }, 1200);
   };
 
   return (
     <div className="w-full h-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden select-none">
       {/* 1. FIXED TOP HEADER */}
-      <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200/90 shadow-2xs z-30 shrink-0 flex items-center gap-4">
-        <button
-          onClick={onBack}
-          className="p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-5 h-5 text-slate-700 stroke-[2.5]" />
-        </button>
-        <h1 className="text-base font-black text-slate-900 tracking-tight">Refer & Earn</h1>
+      <div className="bg-white px-4 pt-3 pb-3 border-b border-slate-200/90 shadow-2xs z-30 shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+          </button>
+          <h1 className="text-base font-extrabold text-slate-900 tracking-tight">Refer & Earn</h1>
+        </div>
+        <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Real-time Rewards</span>
+        </div>
       </div>
 
       {/* 2. SCROLLABLE CONTENT */}
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="px-4 py-5">
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-28">
+        <div className="px-4 py-4 space-y-4">
           {/* Banner */}
-          <div className="bg-gradient-to-br from-[#BA181B] to-[#A11417] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden mb-6">
-            <div className="relative z-10">
-              <h2 className="text-xl font-black mb-1">Get 250g Free Meat! 🥩</h2>
-              <p className="text-sm font-medium opacity-90 leading-relaxed">
-                Invite 10 friends to join Meat Ghar and get a 250g Chicken/Mutton pack absolutely free!
+          <div className="bg-gradient-to-br from-[#A8071A] to-[#780512] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+            <div className="relative z-10 space-y-1.5">
+              <span className="inline-block bg-white/20 backdrop-blur-xs text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Special Referral Offer
+              </span>
+              <h2 className="text-xl font-black">Get 250g Free Meat! 🥩</h2>
+              <p className="text-xs font-medium text-white/90 leading-relaxed">
+                Invite 10 friends to register on Meat Ghar with your code and get a 250g Chicken or Mutton pack completely free.
               </p>
             </div>
-            <Gift className="absolute -right-4 -bottom-4 w-28 h-28 opacity-10 rotate-12" />
+            <Gift className="absolute -right-4 -bottom-4 w-32 h-32 opacity-15 rotate-12 pointer-events-none" />
           </div>
 
-          {/* Referral Progress */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#BA181B]" />
-                <span className="text-sm font-extrabold text-slate-900">Your Referrals</span>
+          {/* Referral Code Box */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-2">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Your Unique Referral Code
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-slate-50 border-2 border-dashed border-red-300 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+                <span className="font-mono font-black text-base text-[#A8071A] tracking-wider">
+                  {referralData.referralCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="p-1 text-slate-500 hover:text-[#A8071A] transition-colors cursor-pointer"
+                  title="Copy Code"
+                >
+                  {copied ? (
+                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                      <Check className="w-4 h-4" /> Copied
+                    </span>
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
               </div>
-              <span className="text-sm font-black text-[#BA181B] bg-red-50 px-3 py-1 rounded-full border border-red-100">
-                {referralCount} / {targetCount}
+
+              <button
+                type="button"
+                onClick={handleShare}
+                className="py-3 px-4 bg-[#A8071A] hover:bg-red-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Real Referral Progress from Supabase */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#A8071A]" />
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900">Registered Referrals</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Real-time status</p>
+                </div>
+              </div>
+              <span className="text-xs font-black text-[#A8071A] bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                {referralData.referralCount} / {referralData.targetCount} Friends
               </span>
             </div>
 
             {/* Progress Bar */}
-            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-3">
-              <div
-                className="h-full bg-emerald-500 transition-all duration-1000 ease-out"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="space-y-1">
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-700 ease-out"
+                  style={{ width: `${Math.max(5, referralData.progressPercent)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-bold text-slate-400 px-0.5">
+                <span>0 Invited</span>
+                <span>{referralData.targetCount} Goal</span>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium text-center">
-              {referralCount >= targetCount
-                ? "🎉 Goal reached! You're eligible for free meat!"
-                : `Add ${targetCount - referralCount} more users to unlock your reward.`}
+
+            <p className="text-[11px] text-slate-600 font-medium text-center bg-slate-50 py-2 px-3 rounded-xl border border-slate-100">
+              {referralData.referralCount >= referralData.targetCount
+                ? "🎉 Milestone Reached! You have unlocked your 250g Free Meat Reward!"
+                : `Invite ${referralData.targetCount - referralData.referralCount} more friend${
+                    referralData.targetCount - referralData.referralCount === 1 ? '' : 's'
+                  } to claim your free reward pack.`}
             </p>
 
-            {referralCount >= targetCount && !isSubmitted && (
+            {referralData.canClaimReward && !isSubmitted && (
               <button
+                type="button"
                 onClick={() => setShowClaimForm(true)}
-                className="w-full mt-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Gift className="w-4 h-4" />
-                CLAIM YOUR FREE 250 GRAM MEAT
+                <span>CLAIM YOUR FREE 250G MEAT NOW</span>
               </button>
             )}
           </div>
 
-          {/* Referral Code Section */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs mb-6">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2 text-center">
-              Your Referral Code
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 flex items-center justify-center font-black text-lg text-slate-900 tracking-widest uppercase">
-                {referralCode}
-              </div>
-              <button
-                onClick={handleCopy}
-                className="w-12 h-12 bg-[#BA181B] text-white rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer"
-              >
-                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-              </button>
-            </div>
-            <button 
-              onClick={handleShare}
-              className="w-full mt-4 py-3 border-2 border-[#BA181B] text-[#BA181B] font-black text-sm rounded-xl flex items-center justify-center gap-2 hover:bg-red-50 transition-all cursor-pointer"
-            >
-              <Share2 className="w-4 h-4" />
-              SHARE WITH FRIENDS
-            </button>
-          </div>
+          {/* List of Real Registered Friends */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
+            <h3 className="text-xs font-extrabold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
+              <span>Friends who joined with your code</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {referralData.referredFriends.length} joined
+              </span>
+            </h3>
 
-          {/* How it works */}
-          <div className="px-1 mb-8">
-            <h3 className="text-sm font-black text-slate-900 mb-3 uppercase tracking-tight">How it works</h3>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">1</div>
-                <p className="text-xs text-slate-600 leading-snug">Share your code or referral link with friends and family.</p>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">2</div>
-                <p className="text-xs text-slate-600 leading-snug">They must use your code to login or register in the app.</p>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">3</div>
-                <p className="text-xs text-slate-600 leading-snug font-bold text-slate-800">Once 10 friends join, you unlock the claim form for 250g Free Meat!</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Referred Users List */}
-          <div className="px-1 pb-10">
-            <h3 className="text-sm font-black text-slate-900 mb-3 uppercase tracking-tight">Registered Referrals ({referralCount})</h3>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden divide-y divide-slate-100">
-              {[
-                { name: 'Amit Kumar', date: '24 Sep 2026', phone: '******4321' },
-                { name: 'Suresh Raina', date: '22 Sep 2026', phone: '******9876' },
-                { name: 'Priya Sharma', date: '18 Sep 2026', phone: '******1234' },
-                { name: 'Vikram Singh', date: '15 Sep 2026', phone: '******5566' },
-                { name: 'Anjali Gupta', date: '10 Sep 2026', phone: '******0099' },
-                { name: 'Rohan Mehra', date: '05 Sep 2026', phone: '******8877' },
-                { name: 'Kavita Jha', date: '01 Sep 2026', phone: '******2211' },
-              ].map((user, idx) => (
-                <div key={idx} className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold uppercase">
-                      {user.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">{user.name}</p>
-                      <p className="text-[10px] text-slate-400">{user.phone}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Joined</span>
-                    <p className="text-[9px] text-slate-400 mt-0.5">{user.date}</p>
-                  </div>
+            {referralData.referredFriends.length === 0 ? (
+              <div className="py-6 text-center space-y-1.5">
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <UserCheck className="w-5 h-5" />
                 </div>
-              ))}
-            </div>
+                <p className="text-xs font-bold text-slate-700">No referrals yet</p>
+                <p className="text-[11px] text-slate-400 max-w-[240px] mx-auto">
+                  Share your code on WhatsApp with family & friends to start earning rewards!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {referralData.referredFriends.map((f, i) => (
+                  <div
+                    key={f.id || i}
+                    className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-red-100 text-[#A8071A] font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {f.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{f.name}</p>
+                        <p className="text-[10px] text-slate-400">Joined on {f.date}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      ✓ Registered
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 3. CLAIM FORM MODAL */}
-      {showClaimForm && !isSubmitted && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-[32px] p-6 animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-black text-slate-900">Claim Your Reward! 🍗</h3>
+      {/* Claim Form Modal */}
+      {showClaimForm && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+              <h3 className="text-sm font-extrabold text-slate-900">Claim 250g Free Meat</h3>
               <button
+                type="button"
                 onClick={() => setShowClaimForm(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center"
+                className="text-slate-400 hover:text-slate-700"
               >
-                <ArrowLeft className="w-4 h-4 rotate-90" />
+                ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmitClaim} className="space-y-4">
+            <form onSubmit={handleSubmitClaim} className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5 ml-1">Phone Number</label>
-                <input
-                  required
-                  type="tel"
-                  placeholder="Enter your registered mobile"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#BA181B] transition-colors"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5 ml-1">Complete Delivery Address</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  Delivery Address *
+                </label>
                 <textarea
                   required
                   rows={3}
-                  placeholder="House No, Area, Landmark, City..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#BA181B] transition-colors resize-none"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Enter complete house/flat, street, Boko/Dhupdhara..."
+                  className="w-full text-xs font-semibold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#A8071A]"
                 />
               </div>
 
               <button
+                type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-[#BA181B] text-white font-black text-sm rounded-xl shadow-lg shadow-red-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#A8071A] text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
               >
-                {isSubmitting ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    SUBMIT CLAIM REQUEST
-                  </>
-                )}
+                {isSubmitting ? 'Submitting...' : 'Submit Claim Request'}
               </button>
-              <p className="text-[10px] text-slate-400 font-medium text-center leading-relaxed">
-                Reward delivery takes 24-48 hours after verification. Our team will contact you if needed.
-              </p>
             </form>
           </div>
         </div>
       )}
 
-      {/* 4. SUCCESS MESSAGE AFTER CLAIM */}
+      {/* Success Modal */}
       {isSubmitted && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 text-emerald-600">
-            <CheckCircle2 className="w-12 h-12 stroke-[2.5]" />
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h3 className="text-xl font-black text-slate-900 mb-2">Request Submitted!</h3>
-          <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
-            Congratulations! Your request for 250g Free Meat has been received. We will verify your referrals and deliver the reward to your address soon.
-          </p>
+          <div className="space-y-1">
+            <h3 className="text-lg font-black text-slate-900">Claim Request Submitted!</h3>
+            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+              We have verified your referrals. Your free 250g meat pack will be delivered to your address!
+            </p>
+          </div>
           <button
+            type="button"
             onClick={() => {
               setIsSubmitted(false);
               setShowClaimForm(false);
               onBack();
             }}
-            className="w-full py-4 bg-slate-900 text-white font-black text-sm rounded-xl active:scale-95 transition-all"
+            className="py-3 px-6 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer"
           >
-            BACK TO HOME
+            Back to Home
           </button>
         </div>
       )}
@@ -326,7 +355,7 @@ export const ShareScreen: React.FC<ShareScreenProps> = ({
         >
           <ShoppingCart className="w-5 h-5 text-slate-400 stroke-[1.8]" />
           {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#BA181B] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#A8071A] text-white text-[9px] font-extrabold flex items-center justify-center border-1.5 border-white shadow-2xs">
               {cartCount}
             </span>
           )}
@@ -343,11 +372,11 @@ export const ShareScreen: React.FC<ShareScreenProps> = ({
 
         <button
           onClick={() => onNavigateTab('share')}
-          className="flex flex-col items-center gap-0.5 text-[#BA181B] relative cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-[#A8071A] relative cursor-pointer"
         >
-          <Share2 className="w-5 h-5 text-[#BA181B] stroke-[#BA181B] stroke-[2.2]" />
-          <span className="text-[10px] font-bold text-[#BA181B]">Share</span>
-          <div className="w-7 h-[2.5px] bg-[#BA181B] rounded-full absolute -bottom-1.5" />
+          <Share2 className="w-5 h-5 text-[#A8071A] stroke-[#A8071A] stroke-[2.2]" />
+          <span className="text-[10px] font-bold text-[#A8071A]">Share</span>
+          <div className="w-7 h-[2.5px] bg-[#A8071A] rounded-full absolute -bottom-1.5" />
         </button>
       </div>
     </div>

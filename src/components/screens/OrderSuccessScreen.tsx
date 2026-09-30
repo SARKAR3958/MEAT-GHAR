@@ -12,6 +12,29 @@ export const OrderSuccessScreen: React.FC<OrderSuccessScreenProps> = ({
   onTrackOrder,
   onViewOrderDetails,
 }) => {
+  const [deliveryAddr, setDeliveryAddr] = React.useState<string>('Your saved address');
+
+  React.useEffect(() => {
+    try {
+      const co = localStorage.getItem('meatghar_checkout_address');
+      if (co) {
+        const parsed = JSON.parse(co);
+        if (parsed.address) {
+          setDeliveryAddr(parsed.address);
+          return;
+        }
+      }
+      const loc = localStorage.getItem('meatghar_selected_location');
+      if (loc) {
+        const parsed = JSON.parse(loc);
+        if (parsed.address) {
+          setDeliveryAddr(parsed.address);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
   // Optional auto-redirect after celebration, or manual click
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,7 +93,7 @@ export const OrderSuccessScreen: React.FC<OrderSuccessScreenProps> = ({
             <div className="text-xs">
               <p className="font-bold text-slate-700">Delivery Address</p>
               <p className="text-slate-500 text-[11px] line-clamp-1 mt-0.5">
-                MG Road, Sector 10, Noida, Uttar Pradesh, 201301
+                {deliveryAddr}
               </p>
             </div>
           </div>

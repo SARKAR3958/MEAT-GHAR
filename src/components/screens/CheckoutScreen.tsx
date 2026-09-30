@@ -16,6 +16,8 @@ import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { GreenTickLottie } from '../GreenTickLottie';
 import { useCart } from '../../context/CartContext';
 import { supabase } from '../../lib/supabase';
+import { SavedAddress } from '../../types/location';
+import { fetchUserAddresses, getCurrentUserIdentifier } from '../../lib/addressService';
 
 interface CheckoutScreenProps {
   onBack: () => void;
@@ -31,6 +33,27 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   const [isSuccessModal, setIsSuccessModal] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [checkoutAddress, setCheckoutAddress] = useState<SavedAddress | null>(() => {
+    try {
+      const saved = localStorage.getItem('meatghar_checkout_address');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (!checkoutAddress) {
+      const userIdent = getCurrentUserIdentifier();
+      fetchUserAddresses(userIdent).then((list) => {
+        if (list.length > 0) {
+          const def = list.find((a) => a.isDefault) || list[0];
+          setCheckoutAddress(def);
+        }
+      });
+    }
+  }, [checkoutAddress]);
 
   const displayTotal = totalAmount > 0 ? totalAmount : 420;
 
@@ -40,7 +63,9 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
       try {
         const savedUserStr = localStorage.getItem('meatghar_user');
         const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
-        const phone = userObj.phone || '9876543210';
+        const phone = userObj.phone || '';
+        
+        if (!phone) return;
         
         const { data } = await supabase
           .from('user_wallets')
@@ -66,7 +91,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
     setErrorMessage('');
     const savedUserStr = localStorage.getItem('meatghar_user');
     const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
-    const phone = userObj.phone || '9876543210';
+    const phone = userObj.phone || '';
 
     // 1. If wallet payment selected, validate and deduct from database
     if (selectedPayment === 'wallet') {
@@ -130,13 +155,22 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
 
       const orderPayload = {
         id: orderId,
-        customer_name: userObj.userName || 'Rahul Sharma',
-        customer_phone: userObj.phone || '9876543210',
+        customer_name: checkoutAddress?.fullName || userObj.userName || 'Customer',
+        customer_phone: checkoutAddress?.phone || userObj.phone || '',
         customer_email: userObj.email || 'customer@meatghar.in',
-        delivery_address: addrObj || {
-          address: 'House No. 24, Green Park Road, Sector 10, Noida, UP - 201301',
-          city: 'Noida',
-        },
+        delivery_address: checkoutAddress
+          ? {
+              address: checkoutAddress.address,
+              city: checkoutAddress.city || 'Guwahati',
+              locality: checkoutAddress.locality,
+              houseFlat: checkoutAddress.houseFlat,
+              street: checkoutAddress.street,
+              landmark: checkoutAddress.landmark,
+            }
+          : addrObj || {
+              address: 'Address not specified',
+              city: 'Guwahati',
+            },
         items:
           cartItems.length > 0
             ? cartItems.map((item) => ({
@@ -235,13 +269,30 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
             </button>
           </div>
 
-          <div>
-            <span className="text-[10px] bg-red-50 text-[#A8071A] px-2 py-0.5 rounded-md font-bold">Home</span>
-            <p className="text-xs font-bold text-slate-900 mt-1">Rahul Sharma</p>
-            <p className="text-xs text-slate-600 font-medium leading-snug">
-              House No. 24, Green Park Road, Sector 10, Noida, Uttar Pradesh - 201301
-            </p>
-          </div>
+          {checkoutAddress ? (
+            <div>
+              <span className="text-[10px] bg-red-50 text-[#A8071A] px-2 py-0.5 rounded-md font-bold">
+                {checkoutAddress.type || 'Delivery'}
+              </span>
+              <p className="text-xs font-bold text-slate-900 mt-1">{checkoutAddress.fullName || 'Customer'}</p>
+              {checkoutAddress.phone && (
+                <p className="text-[11px] text-slate-500 font-medium">📞 {checkoutAddress.phone}</p>
+              )}
+              <p className="text-xs text-slate-600 font-medium leading-snug mt-0.5">
+                📍 {checkoutAddress.address}
+              </p>
+            </div>
+          ) : (
+            <div className="py-1">
+              <p className="text-xs font-bold text-slate-700">No delivery address selected</p>
+              <button
+                onClick={onBack}
+                className="text-xs text-[#A8071A] font-bold mt-1 inline-flex items-center gap-1 cursor-pointer"
+              >
+                + Select or Add Delivery Address
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Delivery Guarantee Banner */}
@@ -272,40 +323,51 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div>
-                <p className="font-bold text-slate-900">Fresh Chicken Curry Cut</p>
-                <p className="text-[10px] text-slate-500">1 KG &bull; Curry Cut &bull; Cleaned</p>
+            {cartItems.length > 0 ? (
+              cartItems.map((item) => (
+                <div key={item.id} className="p-2 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">{item.name}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        Qty: {item.quantity} &bull; {item.weight || '500g'} &bull; <span className="text-emerald-700 font-bold">{item.cut || 'Curry Cut'}</span>
+                      </p>
+                    </div>
+                    <span className="font-black text-slate-900">₹{item.price * item.quantity}</span>
+                  </div>
+                  {(item.notes || (item.cut && item.cut.toLowerCase().includes('custom'))) && (
+                    <p className="text-[9.5px] font-semibold text-amber-900 bg-amber-50 p-1 rounded border border-amber-200">
+                      ✂️ {item.cut && item.cut.toLowerCase().includes('custom') ? item.cut : item.notes}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-between text-xs">
+                <div>
+                  <p className="font-bold text-slate-900">Fresh Meat Cut</p>
+                  <p className="text-[10px] text-slate-500">1 KG &bull; Cleaned</p>
+                </div>
+                <span className="font-bold text-slate-900">₹{subtotal || 420}</span>
               </div>
-              <span className="font-black text-slate-900">₹420</span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <div>
-                <p className="font-bold text-slate-900">Mutton Boneless</p>
-                <p className="text-[10px] text-slate-500">500 G &bull; Boneless &bull; Cleaned</p>
-              </div>
-              <span className="font-black text-slate-900">₹340</span>
-            </div>
+            )}
           </div>
 
           {/* Charges */}
           <div className="pt-2 border-t border-slate-100 space-y-1 text-xs">
-            <div className="flex justify-between text-emerald-600 font-medium">
-              <span>Discount</span><span>-₹70</span>
+            <div className="flex justify-between text-slate-600">
+              <span>Items Total</span>
+              <span className="font-bold text-slate-900">₹{subtotal > 0 ? subtotal : 420}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Packaging Fee</span><span>₹20</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Delivery Fee</span><span>₹30</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Tax (5%)</span><span>₹64</span>
+              <span>Delivery Fee (70-Min Guarantee)</span>
+              <span className="font-bold text-slate-900">
+                {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
+              </span>
             </div>
             <div className="flex justify-between font-black text-slate-900 text-sm pt-1 border-t border-slate-100">
               <span>Grand Total</span>
-              <span className="text-[#A8071A] text-base">₹1,114</span>
+              <span className="text-[#A8071A] text-base">₹{totalAmount > 0 ? totalAmount : 460}</span>
             </div>
           </div>
         </div>

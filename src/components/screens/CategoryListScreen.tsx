@@ -13,10 +13,13 @@ import {
   Share2,
   SlidersHorizontal,
   ChevronRight,
+  Leaf,
+  Zap,
 } from 'lucide-react';
 import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
 import { supabase } from '../../lib/supabase';
+import { getCleanProductImage } from './HomeScreen';
 
 interface CategoryListScreenProps {
   initialCategory?: string | null;
@@ -583,9 +586,54 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
     }
   }, [initialCategory, categoriesList]);
 
-  const currentCategoryInfo = categoriesList.find((c) => c.id === selectedCategory);
-  const displayedProducts = selectedCategory
-    ? productsList.filter((p) => p.categoryId === selectedCategory)
+  const getCategoryCount = (cat: CategoryInfo) => {
+    const catIdNorm = cat.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const catNameNorm = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    return productsList.filter((p) => {
+      const pCat = (p.categoryId || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const pName = (p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (pCat === catIdNorm || pCat === catNameNorm) return true;
+      if (pCat.includes(catIdNorm) || catIdNorm.includes(pCat)) return true;
+
+      if (catIdNorm === 'chicken' && (pCat.includes('chicken') || pName.includes('chicken'))) return true;
+      if (catIdNorm === 'mutton' && (pCat.includes('mutton') || pCat.includes('goat') || pName.includes('mutton') || pName.includes('goat'))) return true;
+      if (catIdNorm === 'fish' && (pCat.includes('fish') || pName.includes('fish') || pName.includes('rohu') || pName.includes('salmon') || pName.includes('pomfret'))) return true;
+      if (catIdNorm === 'eggs' && (pCat.includes('egg') || pName.includes('egg'))) return true;
+      if ((catIdNorm === 'readytocook' || catIdNorm === 'ready_to_cook') && (pCat.includes('ready') || pCat.includes('cook') || pCat.includes('tikka') || pCat.includes('kebab'))) return true;
+      if (catIdNorm === 'specialcuts' && (pCat.includes('special') || pCat.includes('steak') || pCat.includes('shank') || pCat.includes('chops'))) return true;
+      if (catIdNorm === 'prawns' && (pCat.includes('prawn') || pCat.includes('seafood') || pName.includes('prawn'))) return true;
+      if (catIdNorm === 'coldcuts' && (pCat.includes('cold') || pCat.includes('salami') || pCat.includes('sausage'))) return true;
+      if (catIdNorm === 'marinades' && (pCat.includes('marinade') || pCat.includes('kebab') || pName.includes('marinade'))) return true;
+
+      return false;
+    }).length;
+  };
+
+  const currentCategoryInfo = ALL_CATEGORIES.find((c) => c.id === selectedCategory) || categoriesList.find((c) => c.id === selectedCategory);
+  const displayedProducts = selectedCategory && currentCategoryInfo
+    ? productsList.filter((p) => {
+        const catIdNorm = currentCategoryInfo.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const catNameNorm = currentCategoryInfo.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pCat = (p.categoryId || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pName = (p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (pCat === catIdNorm || pCat === catNameNorm) return true;
+        if (pCat.includes(catIdNorm) || catIdNorm.includes(pCat)) return true;
+
+        if (catIdNorm === 'chicken' && (pCat.includes('chicken') || pName.includes('chicken'))) return true;
+        if (catIdNorm === 'mutton' && (pCat.includes('mutton') || pCat.includes('goat') || pName.includes('mutton') || pName.includes('goat'))) return true;
+        if (catIdNorm === 'fish' && (pCat.includes('fish') || pName.includes('fish') || pName.includes('rohu') || pName.includes('salmon') || pName.includes('pomfret'))) return true;
+        if (catIdNorm === 'eggs' && (pCat.includes('egg') || pName.includes('egg'))) return true;
+        if ((catIdNorm === 'readytocook' || catIdNorm === 'ready_to_cook') && (pCat.includes('ready') || pCat.includes('cook') || pCat.includes('tikka') || pCat.includes('kebab'))) return true;
+        if (catIdNorm === 'specialcuts' && (pCat.includes('special') || pCat.includes('steak') || pCat.includes('shank') || pCat.includes('chops'))) return true;
+        if (catIdNorm === 'prawns' && (pCat.includes('prawn') || pCat.includes('seafood') || pName.includes('prawn'))) return true;
+        if (catIdNorm === 'coldcuts' && (pCat.includes('cold') || pCat.includes('salami') || pCat.includes('sausage'))) return true;
+        if (catIdNorm === 'marinades' && (pCat.includes('marinade') || pCat.includes('kebab') || pName.includes('marinade'))) return true;
+
+        return false;
+      })
     : [];
 
   const handleAddQuantity = (product: CategoryProduct, e: React.MouseEvent) => {
@@ -614,12 +662,10 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
-                if (fromOrigin === 'home') {
-                  onBack(); // Directly back to Home when opened from Home
-                } else if (selectedCategory) {
-                  setSelectedCategory(null); // Back to categories grid when manual
+                if (selectedCategory) {
+                  setSelectedCategory(null); // Return to All Categories overview
                 } else {
-                  onBack(); // Back to Home
+                  onBack(); // Return to Home
                 }
               }}
               className="p-1.5 rounded-full hover:bg-slate-100 text-[#BA181B] transition-colors cursor-pointer"
@@ -724,7 +770,7 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
                       {cat.name}
                     </h4>
                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
-                      {cat.itemCount} Items
+                      {getCategoryCount(cat)} Items
                     </p>
                   </div>
                 </div>
@@ -735,7 +781,7 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
           /* VIEW 2: PRODUCTS OF THE SELECTED CATEGORY */
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
-              <span>{currentCategoryInfo?.name} Products</span>
+              <span>{currentCategoryInfo?.name} Products ({displayedProducts.length})</span>
               <button
                 onClick={() => setSelectedCategory(null)}
                 className="text-[11px] text-[#BA181B] font-bold hover:underline"
@@ -744,77 +790,94 @@ export const CategoryListScreen: React.FC<CategoryListScreenProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {displayedProducts.map((p) => {
-                const qty = getItemQuantity(p.id);
+            {displayedProducts.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 border border-slate-100 text-center my-4">
+                <div className="w-12 h-12 rounded-full bg-red-50 text-[#BA181B] font-black text-lg flex items-center justify-center mx-auto mb-2">
+                  0
+                </div>
+                <h3 className="text-sm font-extrabold text-slate-800">0 Items in {currentCategoryInfo?.name}</h3>
+                <p className="text-xs text-slate-400 mt-1">Currently no products are listed under this category.</p>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="mt-3.5 px-4 py-2 bg-[#BA181B] text-white text-xs font-bold rounded-xl"
+                >
+                  Browse Other Categories
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {displayedProducts.map((p) => {
+                  const qty = getItemQuantity(p.id) || getItemQuantity(p.name);
 
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => onSelectProduct(p.name)}
-                    className="bg-white rounded-2xl p-2.5 border border-slate-200/80 shadow-2xs hover:border-red-300 transition-all flex flex-col justify-between cursor-pointer"
-                  >
-                    <div>
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => onSelectProduct(p.name)}
+                      className="bg-white rounded-2xl p-3.5 border border-slate-300 shadow-xs hover:border-[#BA181B]/50 hover:shadow-md transition-all flex gap-3.5 items-center cursor-pointer"
+                    >
                       {/* Product Image */}
-                      <div className="w-full h-[110px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
+                      <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden bg-slate-100 shrink-0 relative border border-slate-100">
                         <AppImage
-                          src={p.image}
+                          src={getCleanProductImage(p.name, p.image)}
                           alt={p.name}
                           className="w-full h-full object-cover"
                         />
-                        {p.discount && (
-                          <span className="absolute top-1.5 left-1.5 bg-[#BA181B] text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-2xs">
-                            {p.discount}
-                          </span>
-                        )}
-                        <span className="absolute top-1.5 right-1.5 bg-[#16A34A] text-white text-[9px] font-medium px-1.5 py-0.5 rounded shadow-2xs">
+                        {/* Top-right: Green pill badge Fresh only */}
+                        <span className="absolute top-2 right-2 bg-[#16A34A] text-white text-[7.5px] font-bold px-1.5 py-0.5 rounded-full shadow-xs flex items-center justify-center">
                           Fresh
                         </span>
                       </div>
 
-                      {/* Product Name */}
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1 leading-snug">
-                        {p.name}
-                      </h4>
+                      {/* Product Details (Full Title without ...) */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words">
+                            {p.name}
+                          </h4>
 
-                      {/* Price in Red (moderate bold) */}
-                      <div className="text-xs font-bold text-[#BA181B] mt-0.5">
-                        {p.price}
-                      </div>
-
-                      {/* Rating & Stock */}
-                      <div className="flex items-center justify-between text-[10px] font-bold mt-1 mb-2">
-                        <div className="flex items-center gap-1 text-slate-800">
-                          <Star className="w-2.5 h-2.5 fill-[#FACC15] text-[#FACC15] shrink-0" />
-                          <span>{p.rating}</span>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-sm font-black text-[#A8071A]">
+                              {p.price}
+                            </span>
+                            <span className="text-[8.5px] text-emerald-600 font-bold flex items-center gap-0.5">
+                              <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block" />
+                              In Stock
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[#16A34A] font-semibold text-[9px]">
-                          ● In Stock
-                        </span>
+
+                        {/* Add Button & Buy Now Button (Opens Product Details Screen) */}
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectProduct(p.name);
+                            }}
+                            className="flex-1 min-w-0 py-2 bg-[#BA181B] hover:bg-red-800 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5 fill-white/20 stroke-[2.2]" />
+                            <span>Add</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectProduct(p.name);
+                            }}
+                            className="flex-1 min-w-0 py-2 bg-[#16A34A] hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          >
+                            <Zap className="w-3.5 h-3.5 fill-white/20 stroke-[2.2]" />
+                            <span>Buy Now</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Quantity or Add Button */}
-                    <div className="flex flex-col gap-1.5 mt-auto">
-                      <button
-                        onClick={() => onSelectProduct(p.name)}
-                        className="w-full py-2 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                      >
-                        <Plus className="w-3 h-3 text-white stroke-[2.5]" />
-                        <span>Add</span>
-                      </button>
-                      <button
-                        onClick={() => onSelectProduct(p.name)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                      >
-                        <ShoppingCart className="w-3 h-3 text-white stroke-[2.5]" />
-                        <span>Buy Now</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { fetchStoreSettings } from '../lib/settingsService';
 
 export interface CartItem {
   id: string;
@@ -21,6 +22,7 @@ interface CartContextType {
   deliveryFee: number;
   taxes: number;
   totalAmount: number;
+  baseDeliveryFee: number;
   addToCart: (item: {
     id: string;
     name: string;
@@ -45,6 +47,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'meatghar_cart_items';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [baseDeliveryFee, setBaseDeliveryFee] = useState<number>(40);
+  const [freeThreshold, setFreeThreshold] = useState<number | undefined>(undefined);
+
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -58,6 +63,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
+  // Fetch real delivery fee and settings from Supabase
+  useEffect(() => {
+    fetchStoreSettings()
+      .then((settings) => {
+        if (settings.deliveryFee !== undefined) {
+          setBaseDeliveryFee(settings.deliveryFee);
+        }
+        if (settings.freeDeliveryThreshold !== undefined) {
+          setFreeThreshold(settings.freeDeliveryThreshold);
+        }
+      })
+      .catch((err) => console.warn('Delivery settings fetch notice:', err));
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
@@ -67,11 +86,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [cartItems]);
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = subtotal > 0 && subtotal < 500 ? 40 : 0;
-  const taxes = subtotal > 0 ? Math.round(subtotal * 0.05) : 0;
-  const totalAmount = subtotal > 0 ? subtotal + deliveryFee + taxes : 0;
+
+  // Delivery fee is fetched from Supabase setting (NOT automatically free)
+  const deliveryFee = subtotal > 0
+    ? (freeThreshold && subtotal >= freeThreshold ? 0 : baseDeliveryFee)
+    : 0;
+
+  const taxes = 0; // Removed extra taxes
+  const totalAmount = subtotal > 0 ? subtotal + deliveryFee : 0;
 
   const addToCart = (product: {
     id: string;
@@ -87,29 +110,38 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantity?: number;
   }) => {
     const addQty = product.quantity && product.quantity > 0 ? product.quantity : 1;
+    const targetCut = product.cut || 'Curry Cut';
+    const targetWeight = product.weight || '1 KG';
+    const targetPrep = product.prep || '';
+
     setCartItems((prev) => {
-      const existingIdx = prev.findIndex((item) => item.id === product.id);
+      const existingIdx = prev.findIndex(
+        (item) =>
+          (item.id === product.id || item.id.startsWith(`${product.id}_`)) &&
+          (item.cut || 'Curry Cut') === targetCut &&
+          (item.weight || '1 KG') === targetWeight &&
+          (item.prep || '') === targetPrep
+      );
+
       if (existingIdx >= 0) {
         const updated = [...prev];
         updated[existingIdx] = {
           ...updated[existingIdx],
           quantity: updated[existingIdx].quantity + addQty,
-          prep: product.prep || updated[existingIdx].prep,
-          cut: product.cut || updated[existingIdx].cut,
           notes: product.notes || updated[existingIdx].notes,
-          weight: product.weight || updated[existingIdx].weight,
         };
         return updated;
       } else {
+        const uniqueId = `${product.id}_${targetCut.replace(/\s+/g, '')}_${targetWeight.replace(/\s+/g, '')}`;
         return [
           ...prev,
           {
-            id: product.id,
+            id: uniqueId,
             name: product.name,
             category: product.category || 'Meat',
-            weight: product.weight || '1 KG',
-            prep: product.prep,
-            cut: product.cut || 'Curry Cut',
+            weight: targetWeight,
+            prep: targetPrep,
+            cut: targetCut,
             notes: product.notes,
             price: product.price,
             originalPrice: product.originalPrice || Math.round(product.price * 1.15),
@@ -125,7 +157,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCartItems((prev) => {
       return prev
         .map((item) => {
-          if (item.id === id) {
+          if (item.id === id || item.name === id) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
@@ -136,7 +168,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = (id: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+    setCartItems((prev) => prev.filter((item) => item.id !== id && item.name !== id));
   };
 
   const clearCart = () => {
@@ -144,7 +176,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getItemQuantity = (id: string) => {
-    const item = cartItems.find((i) => i.id === id);
+    const item = cartItems.find((i) => i.id === id || i.name === id);
     return item ? item.quantity : 0;
   };
 
@@ -157,6 +189,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deliveryFee,
         taxes,
         totalAmount,
+        baseDeliveryFee,
         addToCart,
         updateQuantity,
         removeFromCart,

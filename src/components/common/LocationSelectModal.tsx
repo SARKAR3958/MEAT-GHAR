@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MapPin,
@@ -9,321 +9,119 @@ import {
   Building,
   Check,
   Phone,
-  Tag,
-  ArrowLeft,
   Edit2,
   Trash2,
-  ChevronDown,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { LocationData, SavedAddress } from '../../types/location';
+import {
+  fetchUserAddresses,
+  deleteUserAddress,
+  getCurrentUserIdentifier,
+} from '../../lib/addressService';
 
 export interface LocationSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentLocation: LocationData;
   onSelectLocation: (loc: LocationData) => void;
+  onAddNewAddress?: () => void;
+  onEditAddress?: (addr: SavedAddress) => void;
 }
-
-const CITY_OPTIONS = [
-  'Noida',
-  'Greater Noida',
-  'New Delhi',
-  'South Delhi',
-  'East Delhi',
-  'West Delhi',
-  'Gurugram',
-  'Ghaziabad',
-  'Faridabad',
-  'Mumbai',
-  'Bengaluru',
-  'Hyderabad',
-  'Pune',
-  'Kolkata',
-  'Chandigarh',
-];
-
-const DEFAULT_SAVED_ADDRESSES: SavedAddress[] = [
-  {
-    id: 'addr_1',
-    type: 'Home',
-    fullName: 'Home - Rahul',
-    phone: '98765 43210',
-    altPhone: '98123 45678',
-    houseFlat: 'Flat No. 402, 4th Floor, Block B',
-    street: 'Green Valley Heights, MG Road',
-    locality: 'Sector 10',
-    landmark: 'Near City Park Metro Station',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    pincode: '201301',
-    isDefault: true,
-    address: 'Flat No. 402, Block B, Green Valley Heights, MG Road, Sector 10, Noida',
-    lat: 28.5900,
-    lng: 77.3300,
-  },
-  {
-    id: 'addr_2',
-    type: 'Work',
-    fullName: 'Office Desk',
-    phone: '98765 43210',
-    altPhone: '',
-    houseFlat: 'Tower B, 5th Floor',
-    street: 'Cyber City, Sector 24',
-    locality: 'DLF Phase 2',
-    landmark: 'Opposite Cyber Hub',
-    city: 'Gurugram',
-    state: 'Haryana',
-    pincode: '122002',
-    isDefault: false,
-    address: 'Tower B, 5th Floor, Cyber City, DLF Phase 2, Gurugram',
-    lat: 28.4900,
-    lng: 77.0900,
-  },
-  {
-    id: 'addr_3',
-    type: 'Other',
-    customType: 'Parents',
-    fullName: 'Parents House',
-    phone: '98990 12345',
-    altPhone: '98765 43210',
-    houseFlat: 'House No. 12B, Villa Pocket',
-    street: 'Shipra Suncity, Indirapuram',
-    locality: 'Ahinsa Khand 2',
-    landmark: 'Near Shipra Mall',
-    city: 'Ghaziabad',
-    state: 'Uttar Pradesh',
-    pincode: '201014',
-    isDefault: false,
-    address: 'House No. 12B, Shipra Suncity, Ahinsa Khand 2, Indirapuram, Ghaziabad',
-    lat: 28.6400,
-    lng: 77.3700,
-  },
-];
 
 export const LocationSelectModal: React.FC<LocationSelectModalProps> = ({
   isOpen,
   onClose,
   currentLocation,
   onSelectLocation,
+  onAddNewAddress,
+  onEditAddress,
 }) => {
+  // 1. Instant cached addresses from localStorage (Zero delay)
   const [addresses, setAddresses] = useState<SavedAddress[]>(() => {
     try {
-      const saved = localStorage.getItem('meatghar_saved_addresses_v3');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const cached = localStorage.getItem('meatghar_user_addresses');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch {
-      // fallback
-    }
-    return DEFAULT_SAVED_ADDRESSES;
-  });
-
-  const [selectedAddressId, setSelectedAddressId] = useState<string>(() => {
-    const match = addresses.find(
-      (a) =>
-        a.address.toLowerCase().includes(currentLocation.suburb?.toLowerCase() || '') ||
-        a.locality.toLowerCase().includes(currentLocation.suburb?.toLowerCase() || '')
-    );
-    return match ? match.id : addresses[0]?.id || 'addr_1';
-  });
-
-  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
-  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-
-  // Form states with normal weights and requested field structure
-  const [formType, setFormType] = useState<'Home' | 'Work' | 'Other'>('Home');
-  const [formCustomType, setFormCustomType] = useState('');
-  const [formAddressName, setFormAddressName] = useState('My Home');
-  const [formAltPhone, setFormAltPhone] = useState('');
-  const [formHouseFlat, setFormHouseFlat] = useState('');
-  const [formStreet, setFormStreet] = useState('');
-  const [formLocality, setFormLocality] = useState('');
-  const [formLandmark, setFormLandmark] = useState('');
-  const [formCity, setFormCity] = useState('Noida');
-  const [formIsDefault, setFormIsDefault] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      setViewMode('list');
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('meatghar_saved_addresses_v3', JSON.stringify(addresses));
     } catch {
       // ignore
     }
-  }, [addresses]);
+    return [];
+  });
 
-  const handleClose = () => {
-    setViewMode('list');
-    setEditingAddressId(null);
-    setFormError(null);
-    onClose();
-  };
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(() => {
+    const def = addresses.find((a) => a.isDefault) || addresses[0];
+    return def ? def.id : '';
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState<SavedAddress | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Background fetch to keep synced with Supabase
+  const loadAddresses = useCallback(async () => {
+    try {
+      const userIdent = getCurrentUserIdentifier();
+      const list = await fetchUserAddresses(userIdent);
+      if (list && Array.isArray(list)) {
+        setAddresses(list);
+        if (list.length > 0 && !selectedAddressId) {
+          const def = list.find((a) => a.isDefault) || list[0];
+          setSelectedAddressId(def.id);
+        }
+      }
+    } catch (err) {
+      console.warn('Sync address notice:', err);
+    }
+  }, [selectedAddressId]);
 
   useEffect(() => {
     if (isOpen) {
-      setViewMode('list');
-      setEditingAddressId(null);
-      setFormError(null);
+      loadAddresses();
     }
-  }, [isOpen]);
+  }, [isOpen, loadAddresses]);
 
   if (!isOpen) return null;
-
-  const handleOpenAddForm = () => {
-    setEditingAddressId(null);
-    setFormType('Home');
-    setFormCustomType('');
-    setFormAddressName('My Home');
-    setFormAltPhone('');
-    setFormHouseFlat('');
-    setFormStreet('');
-    setFormLocality('');
-    setFormLandmark('');
-    setFormCity('Noida');
-    setFormIsDefault(addresses.length === 0);
-    setFormError(null);
-    setViewMode('form');
-  };
-
-  const handleOpenEditForm = (addr: SavedAddress, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingAddressId(addr.id);
-    setFormType(addr.type);
-    setFormCustomType(addr.customType || '');
-    setFormAddressName(addr.fullName || 'My Address');
-    setFormAltPhone(addr.altPhone || addr.phone || '');
-    setFormHouseFlat(addr.houseFlat);
-    setFormStreet(addr.street);
-    setFormLocality(addr.locality);
-    setFormLandmark(addr.landmark || '');
-    setFormCity(addr.city || 'Noida');
-    setFormIsDefault(!!addr.isDefault);
-    setFormError(null);
-    setViewMode('form');
-  };
-
-  const handleDeleteAddress = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (addresses.length <= 1) {
-      alert('You must have at least one delivery address.');
-      return;
-    }
-    const updated = addresses.filter((a) => a.id !== id);
-    setAddresses(updated);
-    if (selectedAddressId === id && updated[0]) {
-      handleSelectAddress(updated[0]);
-    }
-  };
 
   const handleSelectAddress = (addr: SavedAddress) => {
     setSelectedAddressId(addr.id);
     const loc: LocationData = {
       address: addr.address,
-      lat: addr.lat || 28.5900,
-      lng: addr.lng || 77.3300,
+      lat: addr.lat || 26.1445,
+      lng: addr.lng || 91.7362,
       suburb: addr.locality || addr.street || addr.city,
-      city: addr.city,
-      state: addr.state || 'Delhi NCR',
-      postcode: addr.pincode || '201301',
+      city: addr.city || 'Guwahati',
+      state: addr.state || 'Assam',
+      postcode: addr.pincode || '781123',
       road: addr.street,
     };
     onSelectLocation(loc);
     onClose();
   };
 
-  const handleSaveAddress = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formAddressName.trim()) {
-      setFormError('Please enter address name');
-      return;
-    }
-    if (!formHouseFlat.trim()) {
-      setFormError('Please enter flat / house / floor details');
-      return;
-    }
-    if (!formStreet.trim()) {
-      setFormError('Please enter street / road / apartment name');
-      return;
-    }
-    if (!formLocality.trim()) {
-      setFormError('Please enter locality / sector');
-      return;
-    }
-    if (!formCity.trim()) {
-      setFormError('Please select a city');
-      return;
-    }
-
-    const constructedAddress = [
-      formHouseFlat.trim(),
-      formStreet.trim(),
-      formLocality.trim(),
-      formLandmark.trim() ? `Near ${formLandmark.trim()}` : null,
-      formCity.trim(),
-    ]
-      .filter(Boolean)
-      .join(', ');
-
-    if (editingAddressId) {
-      const updated = addresses.map((a) => {
-        if (a.id === editingAddressId) {
-          return {
-            ...a,
-            type: formType,
-            customType: formType === 'Other' ? formCustomType.trim() : undefined,
-            fullName: formAddressName.trim(),
-            phone: formAltPhone.trim() || a.phone,
-            altPhone: formAltPhone.trim(),
-            houseFlat: formHouseFlat.trim(),
-            street: formStreet.trim(),
-            locality: formLocality.trim(),
-            landmark: formLandmark.trim(),
-            city: formCity.trim(),
-            isDefault: formIsDefault,
-            address: constructedAddress,
-          };
-        }
-        return formIsDefault ? { ...a, isDefault: false } : a;
-      });
+  const handleConfirmDelete = async () => {
+    if (!addressToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteUserAddress(addressToDelete.id);
+      const updated = addresses.filter((a) => a.id !== addressToDelete.id);
       setAddresses(updated);
-      const edited = updated.find((a) => a.id === editingAddressId);
-      if (edited) {
-        handleSelectAddress(edited);
+      try {
+        localStorage.setItem('meatghar_user_addresses', JSON.stringify(updated));
+      } catch {
+        // ignore
       }
-    } else {
-      const newId = `addr_${Date.now()}`;
-      const newAddress: SavedAddress = {
-        id: newId,
-        type: formType,
-        customType: formType === 'Other' ? formCustomType.trim() : undefined,
-        fullName: formAddressName.trim(),
-        phone: formAltPhone.trim() || '98765 43210',
-        altPhone: formAltPhone.trim(),
-        houseFlat: formHouseFlat.trim(),
-        street: formStreet.trim(),
-        locality: formLocality.trim(),
-        landmark: formLandmark.trim(),
-        city: formCity.trim(),
-        state: 'Delhi NCR',
-        pincode: '201301',
-        isDefault: formIsDefault || addresses.length === 0,
-        address: constructedAddress,
-        lat: 28.5900,
-        lng: 77.3300,
-      };
-
-      const updated = formIsDefault
-        ? [newAddress, ...addresses.map((a) => ({ ...a, isDefault: false }))]
-        : [newAddress, ...addresses];
-
-      setAddresses(updated);
-      handleSelectAddress(newAddress);
+      if (selectedAddressId === addressToDelete.id && updated[0]) {
+        handleSelectAddress(updated[0]);
+      }
+      setAddressToDelete(null);
+    } catch (err) {
+      console.warn('Failed to delete address:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -341,395 +139,252 @@ export const LocationSelectModal: React.FC<LocationSelectModalProps> = ({
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
           className="relative bg-white rounded-t-3xl max-h-[88vh] flex flex-col shadow-2xl z-10 overflow-hidden font-sans"
         >
-          {/* Top subtle bar */}
+          {/* Top subtle handle */}
           <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-2.5 shrink-0" />
 
-          {/* VIEW 1: SAVED ADDRESSES LIST */}
-          {viewMode === 'list' && (
-            <>
-              {/* Header */}
-              <div className="px-4 pt-2.5 pb-2.5 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-red-50 text-[#BA181B] flex items-center justify-center">
-                    <MapPin className="w-4 h-4 stroke-[2]" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Select Delivery Address
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      Choose where you want your order delivered
-                    </p>
-                  </div>
+          {/* Header */}
+          <div className="px-4 pt-2.5 pb-2.5 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-red-50 text-[#A8071A] flex items-center justify-center">
+                <MapPin className="w-4 h-4 stroke-[2]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
+                  Select Delivery Address
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Choose where you want your order delivered
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4 stroke-[2]" />
+            </button>
+          </div>
+
+          {/* Saved Addresses List (Instantly available from Cache) */}
+          <div className="overflow-y-auto px-4 py-3 space-y-2.5 no-scrollbar max-h-[60vh]">
+            {addresses.length === 0 ? (
+              <div className="py-8 px-4 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#A8071A] flex items-center justify-center mx-auto mb-2">
+                  <MapPin className="w-6 h-6" />
                 </div>
+                <p className="text-xs font-bold text-slate-800">No Saved Addresses Found</p>
+                <p className="text-[11px] text-slate-500 mt-1 mb-3">
+                  Please add your delivery address to start getting fresh halal meat.
+                </p>
                 <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onAddNewAddress) onAddNewAddress();
+                  }}
+                  className="inline-flex items-center gap-1.5 py-2 px-4 bg-[#A8071A] text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
                 >
-                  <X className="w-4 h-4 stroke-[2]" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Delivery Address</span>
                 </button>
               </div>
+            ) : (
+              addresses.map((addr) => {
+                const isSelected = selectedAddressId === addr.id;
+                const isDefaultAddress = Boolean(addr.isDefault);
+                const IconComp =
+                  addr.type === 'Home'
+                    ? Home
+                    : addr.type === 'Work'
+                    ? Briefcase
+                    : Building;
 
-              {/* Saved Addresses List */}
-              <div className="overflow-y-auto px-4 py-3 space-y-2.5 no-scrollbar max-h-[60vh]">
-                {addresses.map((addr) => {
-                  const isSelected = selectedAddressId === addr.id;
-                  const IconComp =
-                    addr.type === 'Home'
-                      ? Home
-                      : addr.type === 'Work'
-                      ? Briefcase
-                      : Building;
-
-                  return (
-                    <div
-                      key={addr.id}
-                      onClick={() => handleSelectAddress(addr)}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer relative ${
-                        isSelected
-                          ? 'border-[#BA181B] bg-red-50/40 ring-1 ring-[#BA181B]/40'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      {/* Top row */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`p-1.5 rounded-lg flex items-center justify-center ${
-                              isSelected
-                                ? 'bg-[#BA181B] text-white'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            <IconComp className="w-3.5 h-3.5 stroke-[2]" />
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-semibold text-slate-900">
-                                {addr.fullName || addr.customType || addr.type}
-                              </span>
-                              {addr.isDefault && (
-                                <span className="bg-amber-100 text-amber-900 text-[9.5px] font-medium px-1.5 py-0.2 rounded">
-                                  Default
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10.5px] text-slate-500 font-normal">
-                              {addr.customType || addr.type}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Radio selection indicator */}
-                        <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                return (
+                  <div
+                    key={addr.id}
+                    onClick={() => handleSelectAddress(addr)}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer relative ${
+                      isSelected
+                        ? 'border-[#A8071A] bg-red-50/40 ring-1 ring-[#A8071A]/40'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Top Row: Type & Radio */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`p-1.5 rounded-lg flex items-center justify-center ${
                             isSelected
-                              ? 'border-[#BA181B] bg-[#BA181B] text-white'
-                              : 'border-slate-300 bg-white'
+                              ? 'bg-[#A8071A] text-white'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                          <IconComp className="w-3.5 h-3.5 stroke-[2]" />
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-900">
+                              {addr.fullName || 'Customer'}
+                            </span>
+                            {isDefaultAddress && (
+                              <span className="bg-amber-100 text-amber-900 text-[9.5px] font-bold px-1.5 py-0.2 rounded">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10.5px] text-slate-500 font-medium">
+                            {addr.customType || addr.type}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Detailed address text */}
-                      <p className="text-[11.5px] text-slate-600 font-normal leading-relaxed pl-7 mt-1">
-                        {addr.houseFlat}, {addr.street}, {addr.locality}
-                        {addr.landmark ? `, Near ${addr.landmark}` : ''}, {addr.city}
-                      </p>
+                      {/* Radio Selection Icon */}
+                      <div
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'border-[#A8071A] bg-[#A8071A] text-white'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                    </div>
 
-                      {/* Alternate phone if exists */}
-                      {(addr.altPhone || addr.phone) && (
-                        <div className="mt-1.5 pl-7 flex items-center gap-1.5 text-[10.5px] text-slate-500">
-                          <Phone className="w-3 h-3 text-[#BA181B]" />
-                          <span>Phone / Alt: {addr.altPhone || addr.phone}</span>
-                        </div>
-                      )}
+                    {/* Address Text */}
+                    <p className="text-[11.5px] text-slate-600 font-medium leading-relaxed pl-7 mt-1.5">
+                      {addr.houseFlat}, {addr.street ? `${addr.street}, ` : ''}{addr.locality}
+                      {addr.landmark ? `, Near ${addr.landmark}` : ''}, {addr.city || 'Guwahati'}
+                    </p>
 
-                      {/* Action buttons: Edit & Delete */}
-                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between pl-7">
-                        <span className="text-[10.5px] text-emerald-700 font-medium">
-                          ✓ Delivery Available
-                        </span>
+                    {/* Phone Number */}
+                    {(addr.phone || addr.altPhone) && (
+                      <div className="mt-1 pl-7 flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
+                        <Phone className="w-3 h-3 text-[#A8071A]" />
+                        <span>Phone / Alt: {addr.phone || addr.altPhone}</span>
+                      </div>
+                    )}
 
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenEditForm(addr, e)}
-                            className="text-[11px] font-medium text-slate-600 hover:text-[#BA181B] flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Edit</span>
-                          </button>
-                          {addresses.length > 1 && (
+                    {/* Actions: Edit & Delete */}
+                    <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between pl-7">
+                      <span className="text-[10.5px] text-emerald-700 font-bold">
+                        ✓ Delivery Available
+                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClose();
+                            if (onEditAddress) {
+                              onEditAddress(addr);
+                            }
+                          }}
+                          className="text-[11px] font-bold text-slate-700 hover:text-[#A8071A] flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+
+                        {/* Delete button: ONLY show on non-default addresses */}
+                        {!isDefaultAddress && (
+                          <>
+                            <span className="text-slate-300">|</span>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteAddress(addr.id, e)}
-                              className="text-[11px] font-medium text-red-500 hover:text-red-700 flex items-center gap-1 cursor-pointer transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddressToDelete(addr);
+                              }}
+                              className="text-[11px] font-bold text-red-600 hover:text-red-800 flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <Trash2 className="w-3 h-3" />
                               <span>Delete</span>
                             </button>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
-              {/* Add New Address Button */}
-              <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleOpenAddForm}
-                  className="w-full py-2.5 bg-[#BA181B] hover:bg-red-800 text-white font-semibold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
-                  <span>+ Add New Address</span>
-                </button>
-              </div>
-            </>
-          )}
+          {/* Add New Address Button */}
+          <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onAddNewAddress) onAddNewAddress();
+              }}
+              className="w-full py-3 bg-[#A8071A] hover:bg-red-800 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ Add New Address</span>
+            </button>
+          </div>
+        </motion.div>
 
-          {/* VIEW 2: ADD / EDIT MANUAL ADDRESS FORM */}
-          {viewMode === 'form' && (
-            <form onSubmit={handleSaveAddress} className="flex flex-col flex-1 overflow-hidden">
-              {/* Header */}
-              <div className="px-4 pt-2.5 pb-2.5 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {addressToDelete && (
+            <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                className="bg-white rounded-3xl p-5 max-w-xs w-full shadow-2xl text-center border border-slate-100 space-y-3"
+              >
+                <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-1">
+                  <h4 className="text-base font-extrabold text-slate-900">Delete Address?</h4>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Are you sure you want to delete this address? Please confirm.
+                  </p>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-left text-[11px] text-slate-700 font-medium">
+                  <p className="font-bold text-slate-900 line-clamp-1">{addressToDelete.fullName}</p>
+                  <p className="line-clamp-2 text-slate-500 mt-0.5">{addressToDelete.address}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setViewMode('list')}
-                    className="p-1 rounded-full hover:bg-slate-100 text-slate-600 hover:text-[#BA181B] transition-colors cursor-pointer"
+                    onClick={() => setAddressToDelete(null)}
+                    disabled={isDeleting}
+                    className="py-2.5 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
                   >
-                    <ArrowLeft className="w-4 h-4 stroke-[2]" />
+                    Cancel
                   </button>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      {editingAddressId ? 'Edit Delivery Address' : 'Enter Delivery Address'}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-normal">
-                      Fill address details for delivery
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                    className="py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60 transition-colors"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Confirm</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4 stroke-[2]" />
-                </button>
-              </div>
-
-              {/* Form Content */}
-              <div className="overflow-y-auto px-4 py-3 space-y-3 no-scrollbar max-h-[62vh]">
-                {formError && (
-                  <div className="bg-red-50 text-[#BA181B] border border-red-200 px-3 py-1.5 rounded-xl text-xs font-normal">
-                    {formError}
-                  </div>
-                )}
-
-                {/* 1. Address Type */}
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Save Address As
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { type: 'Home', label: 'Home', icon: Home },
-                      { type: 'Work', label: 'Office / Work', icon: Briefcase },
-                      { type: 'Other', label: 'Other', icon: Building },
-                    ].map((t) => {
-                      const Icon = t.icon;
-                      const isSelected = formType === t.type;
-                      return (
-                        <button
-                          key={t.type}
-                          type="button"
-                          onClick={() => setFormType(t.type as any)}
-                          className={`py-1.5 px-2 rounded-xl border text-xs font-normal flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-[#BA181B] bg-red-50 text-[#BA181B]'
-                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5 stroke-[1.8]" />
-                          <span>{t.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {formType === 'Other' && (
-                    <input
-                      type="text"
-                      value={formCustomType}
-                      onChange={(e) => setFormCustomType(e.target.value)}
-                      placeholder="e.g. Parents House, Friend Flat"
-                      className="mt-2 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B]"
-                    />
-                  )}
-                </div>
-
-                {/* 2. Address Name (Replaced Full Name) */}
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Address Name
-                  </label>
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus-within:border-[#BA181B]">
-                    <Tag className="w-4 h-4 text-slate-400 shrink-0" />
-                    <input
-                      type="text"
-                      value={formAddressName}
-                      onChange={(e) => setFormAddressName(e.target.value)}
-                      placeholder="e.g. My Home, Rahul Flat, Office"
-                      className="w-full text-xs font-normal text-slate-800 bg-transparent outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* 3. Alternative Number (Optional) - Single Phone Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-700">
-                      Alternative Number
-                    </label>
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      Optional
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus-within:border-[#BA181B]">
-                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                    <input
-                      type="tel"
-                      value={formAltPhone}
-                      onChange={(e) => setFormAltPhone(e.target.value)}
-                      placeholder="e.g. 98765 43210 (Optional)"
-                      className="w-full text-xs font-normal text-slate-800 bg-transparent outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* 4. House / Flat details */}
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Flat / House / Floor / Building No.
-                  </label>
-                  <input
-                    type="text"
-                    value={formHouseFlat}
-                    onChange={(e) => setFormHouseFlat(e.target.value)}
-                    placeholder="e.g. Flat 402, 4th Floor, Block B"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B]"
-                  />
-                </div>
-
-                {/* 5. Street / Road / Society */}
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Street / Road / Society / Apartment Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formStreet}
-                    onChange={(e) => setFormStreet(e.target.value)}
-                    placeholder="e.g. Green Valley Heights, MG Road"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B]"
-                  />
-                </div>
-
-                {/* 6. Locality / Sector & Landmark */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-xs font-medium text-slate-700 block mb-1">
-                      Locality / Sector
-                    </label>
-                    <input
-                      type="text"
-                      value={formLocality}
-                      onChange={(e) => setFormLocality(e.target.value)}
-                      placeholder="e.g. Sector 10"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B]"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-slate-700">
-                        Landmark
-                      </label>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        Optional
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={formLandmark}
-                      onChange={(e) => setFormLandmark(e.target.value)}
-                      placeholder="e.g. Near City Park"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B]"
-                    />
-                  </div>
-                </div>
-
-                {/* 7. City Dropdown Menu (State & Pincode removed) */}
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    City
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formCity}
-                      onChange={(e) => setFormCity(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal text-slate-800 outline-none focus:border-[#BA181B] appearance-none cursor-pointer"
-                    >
-                      {CITY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* 8. Make Default Address Checkbox */}
-                <div
-                  onClick={() => setFormIsDefault(!formIsDefault)}
-                  className="flex items-center gap-2 pt-1 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formIsDefault}
-                    onChange={(e) => setFormIsDefault(e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#BA181B] rounded border-slate-300 focus:ring-[#BA181B] cursor-pointer"
-                  />
-                  <span className="text-xs font-normal text-slate-700">
-                    Make this my default delivery address
-                  </span>
-                </div>
-              </div>
-
-              {/* Form Action Buttons */}
-              <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className="w-1/3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs rounded-xl cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-2/3 py-2.5 bg-[#BA181B] hover:bg-red-800 text-white font-medium text-xs rounded-xl shadow-xs cursor-pointer transition-colors"
-                >
-                  Save & Deliver Here
-                </button>
-              </div>
-            </form>
+              </motion.div>
+            </div>
           )}
-        </motion.div>
+        </AnimatePresence>
       </div>
     </AnimatePresence>
   );

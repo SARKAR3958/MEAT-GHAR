@@ -24,6 +24,17 @@ export async function preloadAllImages(): Promise<void> {
     urlsToPreload.add(`/src/assets/images/${filename}`);
   });
 
+  // 3. Online Seed URLs for products and categories (Unsplash fast cache)
+  const unsplashUrls = [
+    'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=500&q=80',
+    'https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&w=500&q=80',
+    'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=500&q=80',
+    'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=500&q=80',
+    'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80',
+    'https://images.unsplash.com/photo-1604503468506-a8da13d82791?auto=format&fit=crop&w=500&q=80',
+  ];
+  unsplashUrls.forEach(url => urlsToPreload.add(url));
+
   // Load and decode all images in parallel
   const promises = Array.from(urlsToPreload).map((url) => {
     return new Promise<void>((resolve) => {

@@ -18,6 +18,7 @@ import { ALL_PRODUCTS, CategoryProduct } from './CategoryListScreen';
 import { HeaderMeatGharLogo } from '../MeatGharLogo';
 import { AppImage } from '../common/AppImage';
 import { useCart } from '../../context/CartContext';
+import { getCleanProductImage } from './HomeScreen';
 
 interface SearchScreenProps {
   onBack: () => void;
@@ -242,70 +243,103 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
           {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {filteredProducts.map((p) => {
-                const qty = getItemQuantity(p.id);
+                const qty = getItemQuantity(p.id) || getItemQuantity(p.name);
 
                 return (
                   <div
                     key={p.id}
                     onClick={() => onSelectProduct(p.name)}
-                    className="bg-white rounded-2xl p-2.5 border border-slate-200/80 shadow-2xs hover:border-red-300 transition-all flex flex-col justify-between cursor-pointer"
+                    className="bg-white rounded-2xl p-2.5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between cursor-pointer"
                   >
                     <div>
                       {/* Product Image with Badges */}
-                      <div className="w-full h-[112px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
+                      <div className="w-full h-[120px] rounded-xl overflow-hidden bg-slate-100 mb-2 relative">
                         <AppImage
-                          src={p.image}
+                          src={getCleanProductImage(p.name, p.image)}
                           alt={p.name}
                           className="w-full h-full object-cover"
                         />
-                        {p.discount && (
-                          <span className="absolute top-1.5 left-1.5 bg-[#BA181B] text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-2xs">
+                        {/* Top-left: Discount badge if available (NEVER bestseller, popular, or fresh tags) */}
+                        {p.discount && (p.discount.includes('%') || p.discount.toLowerCase().includes('off')) && !p.discount.toLowerCase().includes('bestseller') && !p.discount.toLowerCase().includes('popular') && !p.discount.toLowerCase().includes('fresh') && (
+                          <span className="absolute top-2 left-2 bg-[#BA181B] text-white text-[8.5px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase tracking-tight">
                             {p.discount}
                           </span>
                         )}
-                        <span className="absolute top-1.5 right-1.5 bg-[#16A34A] text-white text-[9px] font-medium px-1.5 py-0.5 rounded shadow-2xs">
+                        {/* Top-right: Green pill badge Fresh (smaller and compact) */}
+                        <span className="absolute top-2 right-2 bg-[#16A34A] text-white text-[7.5px] font-bold px-1.5 py-0.5 rounded-full shadow-xs flex items-center justify-center">
                           Fresh
                         </span>
                       </div>
 
                       {/* Product Name */}
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1 leading-snug">
+                      <h4 className="text-xs font-bold text-slate-800 line-clamp-1 mb-1 leading-tight">
                         {p.name}
                       </h4>
 
-                      {/* Price in Red with moderate bold */}
-                      <div className="text-xs font-bold text-[#BA181B] mt-0.5">
+                      {/* Price in dark bold */}
+                      <div className="text-[13px] font-black text-slate-900 mb-1.5">
                         {p.price}
                       </div>
 
                       {/* Rating & Stock */}
-                      <div className="flex items-center justify-between text-[10px] font-bold mt-1 mb-2">
-                        <div className="flex items-center gap-1 text-slate-800">
-                          <Star className="w-2.5 h-2.5 fill-[#FACC15] text-[#FACC15] shrink-0" />
-                          <span>{p.rating}</span>
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                          <span className="text-slate-800 font-bold">{p.rating.split(' ')[0] || '4.8'}</span>
+                          <span className="text-slate-400 font-normal">({p.rating.split(' ')[1] || '1.2k'})</span>
                         </div>
-                        <span className="text-[#16A34A] font-semibold text-[9px]">
-                          ● In Stock
+                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                          In Stock
                         </span>
                       </div>
                     </div>
 
-                    {/* Quantity or Add Button */}
-                    <div className="flex flex-col gap-1.5 mt-auto">
-                      <button
-                        onClick={() => onSelectProduct(p.name)}
-                        className="w-full py-2 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                      >
-                        <Plus className="w-3 h-3 text-white stroke-[2.5]" />
-                        <span>Add</span>
-                      </button>
-                      <button
-                        onClick={() => onSelectProduct(p.name)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                      >
-                        <ShoppingCart className="w-3 h-3 text-white stroke-[2.5]" />
-                        <span>Buy Now</span>
-                      </button>
+                    {/* Add Button or Stepper */}
+                    <div className="mt-2.5">
+                      {qty === 0 ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectProduct(p.name);
+                          }}
+                          className="w-full py-2 bg-[#BA181B] hover:bg-red-800 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 fill-white/20 stroke-[2.2]" />
+                          <span>Add</span>
+                        </button>
+                      ) : (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full py-1.5 bg-[#BA181B] text-white rounded-xl flex items-center justify-between px-2 shadow-sm"
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(p.id, -1);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-black/15 hover:bg-black/25 active:scale-90 flex items-center justify-center cursor-pointer transition-transform"
+                            title="Decrease"
+                          >
+                            <Minus className="w-3.5 h-3.5 text-white stroke-[3]" />
+                          </button>
+                          <span className="font-black text-xs text-white px-2 select-none">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(p.id, 1);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-black/15 hover:bg-black/25 active:scale-90 flex items-center justify-center cursor-pointer transition-transform"
+                            title="Increase"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-white stroke-[3]" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

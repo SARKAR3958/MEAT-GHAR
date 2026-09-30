@@ -78,7 +78,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onBack }) => {
       try {
         const savedUserStr = localStorage.getItem('meatghar_user');
         const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
-        const phone = userObj.phone || '9876543210';
+        const phone = userObj.phone || '';
+        if (!phone) return;
 
         // Fetch user wallet
         const { data: walletData } = await supabase
@@ -151,7 +152,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onBack }) => {
     const txnId = `WTXN-${Math.floor(100000 + Math.random() * 900000)}`;
     const savedUserStr = localStorage.getItem('meatghar_user');
     const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
-    const phone = userObj.phone || '9876543210';
+    const phone = userObj.phone || '';
 
     const newTxn: WalletTransaction = {
       id: txnId,

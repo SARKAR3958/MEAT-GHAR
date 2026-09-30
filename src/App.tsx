@@ -10,6 +10,7 @@ import { SignUpFormScreen } from './components/screens/SignUpFormScreen';
 import { LocationPermissionScreen } from './components/screens/LocationPermissionScreen';
 import { LocationSearchScreen } from './components/screens/LocationSearchScreen';
 import { AddressFormScreen } from './components/screens/AddressFormScreen';
+import { NoAddressOnboardingScreen } from './components/screens/NoAddressOnboardingScreen';
 import { HomeScreen } from './components/screens/HomeScreen';
 import { CategoryListScreen } from './components/screens/CategoryListScreen';
 import { SearchScreen } from './components/screens/SearchScreen';
@@ -34,7 +35,8 @@ import { EditProfileScreen } from './components/screens/EditProfileScreen';
 import { ShareScreen } from './components/screens/ShareScreen';
 import { WalletScreen } from './components/screens/WalletScreen';
 import { AdminPanel } from './components/admin/AdminPanel';
-import { LocationData } from './types/location';
+import { LocationData, SavedAddress } from './types/location';
+import { fetchUserAddresses } from './lib/addressService';
 import { preloadAllImages } from './utils/preloadAssets';
 import { MeatGharLogo } from './components/MeatGharLogo';
 import { RotateCcw } from 'lucide-react';
@@ -53,9 +55,38 @@ export default function App() {
   );
 
   const [currentScreen, setCurrentScreen] = useState<ScreenType>(isInitialAdmin ? 'admin_panel' : 'splash');
-  const [phoneNumber, setPhoneNumber] = useState('98765 43210');
-  const [userName, setUserName] = useState('Rahul Sharma');
-  const [userEmail, setUserEmail] = useState('rahul.sharma@example.com');
+  const [phoneNumber, setPhoneNumber] = useState(() => {
+    try {
+      if (localStorage.getItem('meatghar_logged_out') === 'true') return '';
+      const u = localStorage.getItem('meatghar_user');
+      if (u) return JSON.parse(u).phone || '';
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+  const [userName, setUserName] = useState(() => {
+    try {
+      if (localStorage.getItem('meatghar_logged_out') === 'true') return '';
+      const u = localStorage.getItem('meatghar_user');
+      if (u) return JSON.parse(u).userName || '';
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+  const [userEmail, setUserEmail] = useState(() => {
+    try {
+      if (localStorage.getItem('meatghar_logged_out') === 'true') return '';
+      const u = localStorage.getItem('meatghar_user');
+      if (u) return JSON.parse(u).email || '';
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | undefined>(undefined);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [authMethod, setAuthMethod] = useState<'manual' | 'google'>('manual');
   const [isOrderDelivered, setIsOrderDelivered] = useState(false);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
@@ -71,14 +102,14 @@ export default function App() {
       // ignore
     }
     return {
-      address: 'MG Road, Sector 10, Noida, Uttar Pradesh, 201301',
-      lat: 28.5900,
-      lng: 77.3300,
-      road: 'MG Road',
-      suburb: 'Sector 10',
-      city: 'Noida',
-      state: 'Uttar Pradesh',
-      postcode: '201301',
+      address: 'Boko, Guwahati, Assam - 781123',
+      lat: 26.1445,
+      lng: 91.7362,
+      road: 'Main Road',
+      suburb: 'Boko',
+      city: 'Guwahati',
+      state: 'Assam',
+      postcode: '781123',
     };
   });
 
@@ -91,6 +122,64 @@ export default function App() {
     }
   }, []);
 
+  // Fetch real addresses from Supabase when user is known
+  useEffect(() => {
+    if (phoneNumber || userEmail) {
+      fetchUserAddresses({ phone: phoneNumber, email: userEmail, name: userName })
+        .then((list) => {
+          if (list && list.length > 0) {
+            const def = list.find((a) => a.isDefault) || list[0];
+            setUserLocation((prev) => ({
+              ...prev,
+              address: def.address,
+              road: def.street,
+              suburb: def.locality,
+              city: def.city || 'Guwahati',
+              state: def.state || 'Assam',
+              postcode: def.pincode || '781123',
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [phoneNumber, userEmail, userName]);
+
+  // Check if user has addresses saved, if not redirect to require_address screen
+  const checkAndRedirectUserAddress = useCallback(
+    async (targetPhone?: string, targetEmail?: string): Promise<boolean> => {
+      const p = targetPhone || phoneNumber;
+      const e = targetEmail || userEmail;
+      if (!p && !e) return false;
+      try {
+        const list = await fetchUserAddresses({ phone: p, email: e, name: userName });
+        if (!list || list.length === 0) {
+          historyStackRef.current = ['require_address'];
+          navigateScreen('require_address');
+          return false;
+        } else {
+          const def = list.find((a) => a.isDefault) || list[0];
+          if (def) {
+            handleUpdateLocation({
+              address: def.address,
+              lat: def.lat || 26.1445,
+              lng: def.lng || 91.7362,
+              road: def.street,
+              suburb: def.locality,
+              city: def.city || 'Guwahati',
+              state: def.state || 'Assam',
+              postcode: def.pincode || '781123',
+            });
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('Address verification notice:', err);
+        return false;
+      }
+    },
+    [phoneNumber, userEmail, userName, handleUpdateLocation]
+  );
+
   // Track screen navigation history stack for Android hardware/navigation bar back button
   const historyStackRef = useRef<ScreenType[]>([isInitialAdmin ? 'admin_panel' : 'splash']);
   const lastBackPressTimeRef = useRef<number>(0);
@@ -98,9 +187,49 @@ export default function App() {
   const [showExitToast, setShowExitToast] = useState(false);
   const [isAppExited, setIsAppExited] = useState(false);
 
+  // Custom Toast & Verification Modal States
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('error');
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [pendingSignupData, setPendingSignupData] = useState<{
+    phone: string;
+    email: string;
+    name: string;
+    userId?: string;
+  } | null>(null);
+  const [signupOtp, setSignupOtp] = useState('');
+  const [isVerifyingSignupOtp, setIsVerifyingSignupOtp] = useState(false);
+  const [signupOtpError, setSignupOtpError] = useState('');
+  const [signupResendCooldown, setSignupResendCooldown] = useState(60);
+
+  useEffect(() => {
+    if (signupResendCooldown > 0 && showVerifyModal) {
+      const t = setTimeout(() => setSignupResendCooldown((c) => c - 1), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [signupResendCooldown, showVerifyModal]);
+
+  const showAppToast = (msg: string, type: 'success' | 'error' = 'error') => {
+    setToastMessage(msg);
+    setToastType(type);
+  };
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   // Load saved user profile from localStorage if exists
   useEffect(() => {
     try {
+      if (localStorage.getItem('meatghar_logged_out') === 'true') {
+        return;
+      }
       const savedUser = localStorage.getItem('meatghar_user');
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
@@ -137,62 +266,53 @@ export default function App() {
       registerMedianPush();
     }
 
-    // Supabase Auth listener (for Google OAuth callback & session restore)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const uEmail = session.user.email || 'customer@meatghar.in';
-        const metaName =
-          session.user.user_metadata?.full_name || session.user.user_metadata?.name;
-        const uName = metaName || uEmail.split('@')[0] || 'Customer';
-        const uPhone = session.user.phone || '9876543210';
-        setUserName(uName);
-        setUserEmail(uEmail);
-        setAuthMethod('google');
-        
-        // Sync custom tags with Median push notification server
-        if (isMedianApp()) {
-          syncMedianPushTags(uPhone, uName);
-        }
-
+    // Supabase Auth listener (only for explicit Google OAuth callback, never auto-jump to home)
+    const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         try {
-          localStorage.setItem(
-            'meatghar_user',
-            JSON.stringify({
-              userName: uName,
-              email: uEmail,
-              phone: uPhone,
-              authMethod: 'google',
-              isLoggedIn: true,
-              loginTime: new Date().toISOString(),
-            })
-          );
+          localStorage.removeItem('meatghar_user');
+          localStorage.setItem('meatghar_logged_out', 'true');
         } catch {
           // ignore
         }
+        setUserName('');
+        setPhoneNumber('');
+        setUserEmail('');
+        setAuthMethod('manual');
+        return;
       }
-    });
 
-    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const uEmail = session.user.email || 'customer@meatghar.in';
+      // If user has explicitly logged out, DO NOT auto login
+      const isLoggedOut = localStorage.getItem('meatghar_logged_out') === 'true';
+      if (isLoggedOut) {
+        return;
+      }
+
+      // Only handle real Google OAuth callback when URL has hash/params
+      const isOAuthCallback =
+        window.location.hash.includes('access_token') ||
+        window.location.search.includes('code');
+
+      if (event === 'SIGNED_IN' && session?.user && isOAuthCallback) {
+        const uEmail = session.user.email || '';
         const metaName =
-          session.user.user_metadata?.full_name || session.user.user_metadata?.name;
-        const uName = metaName || uEmail.split('@')[0] || 'Customer';
-        const uPhone = session.user.phone || '9876543210';
-        setUserName(uName);
+          session.user.user_metadata?.full_name || session.user.user_metadata?.name || uEmail.split('@')[0] || 'Customer';
+        const uPhone = session.user.user_metadata?.phone || session.user.phone || '';
+        setUserName(metaName);
         setUserEmail(uEmail);
+        if (uPhone) setPhoneNumber(uPhone);
         setAuthMethod('google');
 
-        // Sync tags on auth state change
-        if (isMedianApp()) {
-          syncMedianPushTags(uPhone, uName);
+        if (isMedianApp() && uPhone) {
+          syncMedianPushTags(uPhone, metaName);
         }
 
         try {
+          localStorage.setItem('meatghar_logged_out', 'false');
           localStorage.setItem(
             'meatghar_user',
             JSON.stringify({
-              userName: uName,
+              userName: metaName,
               email: uEmail,
               phone: uPhone,
               authMethod: 'google',
@@ -469,6 +589,29 @@ export default function App() {
     }
   };
 
+  // Explicit user logout handler
+  const handleUserLogout = useCallback(async () => {
+    try {
+      localStorage.removeItem('meatghar_user');
+      localStorage.removeItem('meatghar_checkout_address');
+      localStorage.setItem('meatghar_logged_out', 'true');
+    } catch {
+      // ignore
+    }
+    setUserName('');
+    setPhoneNumber('');
+    setUserEmail('');
+    setAuthMethod('manual');
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    }
+    historyStackRef.current = ['signup'];
+    navigateScreen('signup');
+    showAppToast('You have been logged out successfully.', 'success');
+  }, [navigateScreen]);
+
   const handleProfileOptionClick = (optionId: string) => {
     switch (optionId) {
       case 'profile_edit':
@@ -535,7 +678,24 @@ export default function App() {
           {/* Screen 01: Splash */}
           {currentScreen === 'splash' && (
             <SplashScreen
-              onNext={() => {
+              onNext={async () => {
+                const savedUserStr = localStorage.getItem('meatghar_user');
+                const isLoggedOut = localStorage.getItem('meatghar_logged_out') === 'true';
+                if (savedUserStr && !isLoggedOut) {
+                  try {
+                    const u = JSON.parse(savedUserStr);
+                    if (u.isLoggedIn && (u.phone || u.email)) {
+                      const hasAddr = await checkAndRedirectUserAddress(u.phone, u.email);
+                      if (hasAddr) {
+                        historyStackRef.current = ['home'];
+                        navigateScreen('home');
+                      }
+                      return;
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
                 historyStackRef.current = ['onboarding1'];
                 navigateScreen('onboarding1');
               }}
@@ -571,34 +731,88 @@ export default function App() {
             <SignupScreen
               phoneNumber={phoneNumber}
               setPhoneNumber={setPhoneNumber}
-              onLoginSubmit={(phone) => {
-                const uName = phone.slice(-4) ? `Customer ${phone.slice(-4)}` : 'Customer';
-                setPhoneNumber(phone);
-                setUserName(uName);
-                setAuthMethod('manual');
-                try {
-                  localStorage.setItem(
-                    'meatghar_user',
-                    JSON.stringify({
-                      phone,
-                      userName: uName,
-                      email: `${phone.replace(/\s+/g, '')}@meatghar.in`,
-                      authMethod: 'manual',
-                      isLoggedIn: true,
-                      loginTime: new Date().toISOString(),
-                    })
-                  );
-                } catch {
-                  // ignore
+              onLoginSubmit={async (phone, pass) => {
+                const cleanPhone = phone.trim();
+                if (!cleanPhone) {
+                  showAppToast('Please enter your mobile number!', 'error');
+                  return;
                 }
-                historyStackRef.current = ['home'];
-                navigateScreen('home');
+                if (!pass) {
+                  showAppToast('Please enter your password!', 'error');
+                  return;
+                }
+
+                try {
+                  // 1. Find user email mapping from Profiles table
+                  const { data: profile, error: profileErr } = await supabase
+                    .from('profiles')
+                    .select('email, full_name')
+                    .eq('phone', cleanPhone)
+                    .maybeSingle();
+
+                  if (profileErr) {
+                    console.error('Database connection error (Please run the SQL schema in Supabase Dashboard):', profileErr);
+                    showAppToast('Unable to connect to the login server. Please try again in a moment.', 'error');
+                    return;
+                  }
+
+                  if (!profile) {
+                    showAppToast('This mobile number is not registered. Please sign up!', 'error');
+                    return;
+                  }
+
+                  // 2. Authenticate with Supabase Auth
+                  const { error: authErr } = await supabase.auth.signInWithPassword({
+                    email: profile.email,
+                    password: pass,
+                  });
+
+                  if (authErr) {
+                    if (authErr.message.toLowerCase().includes('confirm') || authErr.message.toLowerCase().includes('verified')) {
+                      showAppToast('Please verify your email. Also check in spam folder!', 'error');
+                    } else {
+                      showAppToast('Incorrect mobile number or password! If you registered recently, please verify your email and also check in spam folder.', 'error');
+                    }
+                    return;
+                  }
+
+                  // 3. Setup login session states
+                  setPhoneNumber(cleanPhone);
+                  setUserName(profile.full_name);
+                  setUserEmail(profile.email);
+                  setAuthMethod('manual');
+
+                  try {
+                    localStorage.setItem('meatghar_logged_out', 'false');
+                    localStorage.setItem(
+                      'meatghar_user',
+                      JSON.stringify({
+                        phone: cleanPhone,
+                        userName: profile.full_name,
+                        email: profile.email,
+                        authMethod: 'manual',
+                        isLoggedIn: true,
+                        loginTime: new Date().toISOString(),
+                      })
+                    );
+                  } catch {
+                    // ignore
+                  }
+
+                  const hasAddr = await checkAndRedirectUserAddress(cleanPhone, profile.email);
+                  if (hasAddr) {
+                    historyStackRef.current = ['home'];
+                    navigateScreen('home');
+                  }
+                } catch (err: any) {
+                  showAppToast(`An unexpected error occurred: ${err.message || String(err)}`, 'error');
+                }
               }}
               onGoogleLogin={async (customEmail, customName) => {
                 if (customEmail) {
-                  const finalName = customName || 'Sarkar';
+                  const finalName = customName || 'User';
                   const gUser = {
-                    phone: phoneNumber || '9876543210',
+                    phone: phoneNumber || '',
                     userName: finalName,
                     email: customEmail,
                     authMethod: 'google' as const,
@@ -613,8 +827,11 @@ export default function App() {
                   } catch {
                     // ignore
                   }
-                  historyStackRef.current = ['home'];
-                  navigateScreen('home');
+                  const hasAddr = await checkAndRedirectUserAddress(phoneNumber || '', customEmail);
+                  if (hasAddr) {
+                    historyStackRef.current = ['home'];
+                    navigateScreen('home');
+                  }
                   return;
                 }
 
@@ -622,24 +839,7 @@ export default function App() {
                   await signInWithGoogleAndroidAPK();
                 } catch (err: unknown) {
                   console.warn('Google login popup/notice:', err);
-                  const gUser = {
-                    phone: phoneNumber || '9876543210',
-                    userName: 'Rahul Sharma',
-                    email: 'rahul.google@gmail.com',
-                    authMethod: 'google' as const,
-                    isLoggedIn: true,
-                    loginTime: new Date().toISOString(),
-                  };
-                  setAuthMethod('google');
-                  setUserName('Rahul Sharma');
-                  setUserEmail('rahul.google@gmail.com');
-                  try {
-                    localStorage.setItem('meatghar_user', JSON.stringify(gUser));
-                  } catch {
-                    // ignore
-                  }
-                  historyStackRef.current = ['home'];
-                  navigateScreen('home');
+                  showAppToast('Google Sign-In was cancelled or unavailable. Please login with mobile and password.', 'error');
                 }
               }}
               onGoToSignUp={() => navigateScreen('signup_form')}
@@ -650,51 +850,57 @@ export default function App() {
           {/* Screen 06: Create Account (Sign Up Form) */}
           {currentScreen === 'signup_form' && (
             <SignUpFormScreen
-              onSignUpSubmit={(data) => {
-                const uName = data.fullName || 'Customer';
-                const uPhone = data.phone || phoneNumber;
-                const uEmail = data.email || `${uPhone}@meatghar.in`;
-                setUserName(uName);
-                setPhoneNumber(uPhone);
-                setUserEmail(uEmail);
-                setAuthMethod('manual');
-                try {
-                  localStorage.setItem(
-                    'meatghar_user',
-                    JSON.stringify({
-                      userName: uName,
-                      phone: uPhone,
-                      email: uEmail,
-                      authMethod: 'manual',
-                      isLoggedIn: true,
-                      loginTime: new Date().toISOString(),
-                    })
-                  );
-                } catch {
-                  // ignore
+              onSignUpSubmit={async (data) => {
+                const uName = data.fullName.trim();
+                const uPhone = data.phone.trim();
+                const uEmail = data.email.trim().toLowerCase();
+                const uPassword = data.password;
+
+                if (!uName || !uPhone || !uEmail || !uPassword) {
+                  showAppToast('Please fill in all required fields!', 'error');
+                  return;
                 }
-                historyStackRef.current = ['home'];
-                navigateScreen('home');
+
+                try {
+                  // 1. Sign Up inside Supabase Auth (Supabase sends verification OTP to email)
+                  const { data: signUpData, error: authErr } = await supabase.auth.signUp({
+                    email: uEmail,
+                    password: uPassword,
+                    options: {
+                      data: {
+                        phone: uPhone,
+                        full_name: uName,
+                      }
+                    }
+                  });
+
+                  if (authErr) {
+                    showAppToast(`Registration failed: ${authErr.message}`, 'error');
+                    return;
+                  }
+
+                  // 2. Open 6-digit Email OTP Verification Modal!
+                  setRegisteredEmail(uEmail);
+                  setPendingSignupData({
+                    phone: uPhone,
+                    email: uEmail,
+                    name: uName,
+                    userId: signUpData.user?.id,
+                  });
+                  setSignupOtp('');
+                  setSignupOtpError('');
+                  setSignupResendCooldown(60);
+                  setShowVerifyModal(true);
+                } catch (err: any) {
+                  showAppToast(`An error occurred during sign up: ${err.message || String(err)}`, 'error');
+                }
               }}
-              onGoogleLogin={() => {
-                const gUser = {
-                  phone: phoneNumber || '9876543210',
-                  userName: 'Rahul Sharma',
-                  email: 'rahul.google@gmail.com',
-                  authMethod: 'google',
-                  isLoggedIn: true,
-                  loginTime: new Date().toISOString(),
-                };
-                setAuthMethod('google');
-                setUserName('Rahul Sharma');
-                setUserEmail('rahul.google@gmail.com');
+              onGoogleLogin={async () => {
                 try {
-                  localStorage.setItem('meatghar_user', JSON.stringify(gUser));
+                  await signInWithGoogleAndroidAPK();
                 } catch {
-                  // ignore
+                  showAppToast('Google Sign-In was cancelled or unavailable. Please use mobile and password.', 'error');
                 }
-                historyStackRef.current = ['home'];
-                navigateScreen('home');
               }}
               onGoToLogin={() => navigateScreen('signup')}
             />
@@ -720,12 +926,45 @@ export default function App() {
             />
           )}
 
+          {/* Screen: Mandatory Delivery Address Onboarding */}
+          {currentScreen === 'require_address' && (
+            <NoAddressOnboardingScreen
+              userName={userName}
+              onAddAddressClick={() => {
+                navigateScreen('address_form');
+              }}
+            />
+          )}
+
           {/* Screen 09: Add New Address */}
           {currentScreen === 'address_form' && (
             <AddressFormScreen
-              onBack={() => goBack()}
-              onSaveAddress={() => navigateScreen('home')}
+              onBack={() => {
+                setEditingAddress(undefined);
+                goBack();
+              }}
+              onSaveAddress={(saved) => {
+                setEditingAddress(undefined);
+                if (saved) {
+                  handleUpdateLocation({
+                    address: saved.address,
+                    lat: saved.lat || 26.1445,
+                    lng: saved.lng || 91.7362,
+                    suburb: saved.locality,
+                    city: saved.city || 'Guwahati',
+                    postcode: saved.pincode || '781123',
+                    road: saved.street,
+                  });
+                }
+                historyStackRef.current = ['home'];
+                navigateScreen('home');
+                showAppToast('Delivery address saved successfully! Fresh cuts on the way.', 'success');
+              }}
               locationData={userLocation}
+              initialAddress={editingAddress}
+              userName={userName}
+              userPhone={phoneNumber}
+              isFirstAddressMandatory={!editingAddress}
             />
           )}
 
@@ -740,7 +979,14 @@ export default function App() {
               userLocation={userLocation}
               onUpdateLocation={handleUpdateLocation}
               onOpenMapPicker={() => navigateScreen('location_search')}
-              onAddNewAddress={() => navigateScreen('address_form')}
+              onAddNewAddress={() => {
+                setEditingAddress(undefined);
+                navigateScreen('address_form');
+              }}
+              onEditAddress={(addr) => {
+                setEditingAddress(addr);
+                navigateScreen('address_form');
+              }}
             />
           )}
 
@@ -792,9 +1038,22 @@ export default function App() {
           {currentScreen === 'delivery_address' && (
             <DeliveryAddressScreen
               onBack={() => goBack()}
-              onContinueToCheckout={() => navigateScreen('checkout')}
-              onAddNewAddress={() => navigateScreen('address_form')}
+              onContinueToCheckout={(sel) => {
+                if (sel) {
+                  try {
+                    localStorage.setItem('meatghar_checkout_address', JSON.stringify(sel));
+                  } catch {
+                    // ignore
+                  }
+                }
+                navigateScreen('checkout');
+              }}
+              onAddNewAddress={() => {
+                setEditingAddress(undefined);
+                navigateScreen('address_form');
+              }}
               onNavigateTab={handleTabNavigation}
+              userLocation={userLocation}
             />
           )}
 
@@ -868,7 +1127,10 @@ export default function App() {
           {currentScreen === 'my_orders' && (
             <MyOrdersScreen
               onBack={() => navigateScreen('home')}
-              onSelectOrderDetails={() => navigateScreen('order_details')}
+              onSelectOrderDetails={(_orderId, orderObj) => {
+                if (orderObj) setSelectedOrder(orderObj);
+                navigateScreen('order_details');
+              }}
               onNavigateTab={handleTabNavigation}
               isOrderDelivered={isOrderDelivered}
             />
@@ -880,6 +1142,7 @@ export default function App() {
               onBack={() => goBack()}
               onReorder={() => navigateScreen('cart')}
               onGetHelp={() => navigateScreen('help_support')}
+              order={selectedOrder}
             />
           )}
 
@@ -891,7 +1154,7 @@ export default function App() {
               currentAddress={userLocation.address}
               onBack={() => goBack()}
               onNavigateOption={handleProfileOptionClick}
-              onLogout={() => navigateScreen('signup')}
+              onLogout={handleUserLogout}
             />
           )}
 
@@ -916,7 +1179,14 @@ export default function App() {
           {currentScreen === 'my_addresses' && (
             <MyAddressesScreen
               onBack={() => goBack()}
-              onAddNewAddress={() => navigateScreen('address_form')}
+              onAddNewAddress={() => {
+                setEditingAddress(undefined);
+                navigateScreen('address_form');
+              }}
+              onEditAddress={(addr) => {
+                setEditingAddress(addr);
+                navigateScreen('address_form');
+              }}
               onNavigateTab={handleTabNavigation}
             />
           )}
@@ -1010,6 +1280,219 @@ export default function App() {
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reopen Meat Ghar</span>
           </button>
+        </div>
+      )}
+
+      {/* Custom Error/Success App-wide Toast System */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-4 left-4 right-4 z-[99999] p-4 rounded-2xl shadow-2xl flex items-start gap-3 border ${
+              toastType === 'success' 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            <span className="text-base shrink-0 mt-0.5">{toastType === 'success' ? '✓' : '⚠️'}</span>
+            <div className="text-left">
+              <p className="text-xs font-bold leading-relaxed">{toastMessage}</p>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setToastMessage(null)}
+              className="ml-auto text-slate-400 hover:text-slate-600 text-xs font-bold px-1"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 6-DIGIT EMAIL OTP VERIFICATION POPUP MODAL */}
+      {showVerifyModal && (
+        <div className="fixed inset-0 bg-slate-950/70 z-[999999] flex items-center justify-center p-5 backdrop-blur-xs select-none">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-slate-100 text-center animate-scale-in flex flex-col space-y-4">
+            
+            {/* Header Icon */}
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-[#A8071A] flex items-center justify-center mx-auto text-2xl font-extrabold shadow-inner">
+              ✉️
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">Enter Verification Code</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                We sent a verification code to:
+              </p>
+              <p className="text-xs font-black text-slate-900 break-all p-2 bg-slate-50 rounded-xl border border-slate-200/80 font-mono">
+                {registeredEmail}
+              </p>
+            </div>
+
+            {signupOtpError && (
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600">
+                {signupOtpError}
+              </div>
+            )}
+
+            {/* OTP input (Supports 6 to 8 digits) */}
+            <div className="space-y-1">
+              <input
+                type="text"
+                maxLength={8}
+                autoFocus
+                value={signupOtp}
+                onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="Enter code"
+                className="w-full py-3 px-4 text-center tracking-[0.4em] font-mono text-xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-[#A8071A] focus:bg-white transition-all shadow-inner"
+              />
+              <p className="text-[10px] text-slate-400 font-medium pt-1">
+                Enter the verification code received on your email.
+              </p>
+            </div>
+
+            {/* Resend Code Button */}
+            <div className="flex items-center justify-center">
+              <button
+                type="button"
+                disabled={signupResendCooldown > 0 || isVerifyingSignupOtp}
+                onClick={async () => {
+                  try {
+                    setSignupOtpError('');
+                    const { error } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: registeredEmail,
+                    });
+                    if (error) {
+                      setSignupOtpError(error.message);
+                    } else {
+                      setSignupResendCooldown(60);
+                      showAppToast('Verification OTP resent to your email!', 'success');
+                    }
+                  } catch (e: any) {
+                    setSignupOtpError(e.message || 'Failed to resend code');
+                  }
+                }}
+                className="text-[11px] font-bold text-[#A8071A] hover:underline disabled:opacity-40 cursor-pointer"
+              >
+                {signupResendCooldown > 0
+                  ? `Resend Code in ${signupResendCooldown}s`
+                  : 'Didn’t receive code? Resend OTP'}
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVerifyModal(false);
+                  setPendingSignupData(null);
+                  setSignupOtp('');
+                }}
+                disabled={isVerifyingSignupOtp}
+                className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isVerifyingSignupOtp || signupOtp.length < 6}
+                onClick={async () => {
+                  if (signupOtp.length < 6) {
+                    setSignupOtpError('Please enter the verification code');
+                    return;
+                  }
+                  setIsVerifyingSignupOtp(true);
+                  setSignupOtpError('');
+
+                  try {
+                    // Try type 'signup' first
+                    let verifyResult = await supabase.auth.verifyOtp({
+                      email: registeredEmail,
+                      token: signupOtp.trim(),
+                      type: 'signup',
+                    });
+
+                    // If signup type gives error, fallback to 'email'
+                    if (verifyResult.error) {
+                      verifyResult = await supabase.auth.verifyOtp({
+                        email: registeredEmail,
+                        token: signupOtp.trim(),
+                        type: 'email',
+                      });
+                    }
+
+                    if (verifyResult.error) {
+                      setSignupOtpError(verifyResult.error.message || 'Invalid OTP code. Please check and try again.');
+                      setIsVerifyingSignupOtp(false);
+                      return;
+                    }
+
+                    // Verification succeeded!
+                    const finalUser = pendingSignupData || {
+                      phone: phoneNumber || '',
+                      name: userName || 'User',
+                      email: registeredEmail,
+                      userId: verifyResult.data.user?.id,
+                    };
+
+                    // Upsert profile in public.profiles table
+                    await supabase.from('profiles').upsert({
+                      phone: finalUser.phone,
+                      email: finalUser.email,
+                      full_name: finalUser.name,
+                      id: verifyResult.data.user?.id || finalUser.userId,
+                    }, { onConflict: 'phone' });
+
+                    // Save local session
+                    const userObj = {
+                      phone: finalUser.phone,
+                      userName: finalUser.name,
+                      email: finalUser.email,
+                      authMethod: 'manual' as const,
+                      isLoggedIn: true,
+                      loginTime: new Date().toISOString(),
+                    };
+                    setPhoneNumber(finalUser.phone);
+                    setUserName(finalUser.name);
+                    setUserEmail(finalUser.email);
+                    setAuthMethod('manual');
+                    try {
+                      localStorage.setItem('meatghar_logged_out', 'false');
+                      localStorage.setItem('meatghar_user', JSON.stringify(userObj));
+                    } catch {
+                      // ignore
+                    }
+
+                    setShowVerifyModal(false);
+                    setPendingSignupData(null);
+                    setSignupOtp('');
+                    showAppToast('Account verified successfully! Please add your delivery address.', 'success');
+                    historyStackRef.current = ['require_address'];
+                    navigateScreen('require_address');
+                  } catch (err: any) {
+                    setSignupOtpError(err.message || 'Verification failed. Please try again.');
+                  } finally {
+                    setIsVerifyingSignupOtp(false);
+                  }
+                }}
+                className="flex-1 py-3 bg-[#A8071A] hover:bg-red-800 active:bg-red-900 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isVerifyingSignupOtp ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <span>Verify &amp; Enter</span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </MobileFrame>

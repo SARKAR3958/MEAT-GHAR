@@ -9,6 +9,7 @@ export type ScreenType =
   | 'signup_form'
   | 'location_perm'
   | 'location_search'
+  | 'require_address'
   | 'address_form'
   | 'home'
   | 'category'

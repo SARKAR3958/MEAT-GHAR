@@ -261,9 +261,6 @@ export const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({
             alt="Fresh Chicken Curry Cut"
             className="w-full h-full object-cover"
           />
-          <span className="absolute top-3 left-3 bg-[#BA181B] text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md">
-            10% OFF
-          </span>
           <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 shadow-xs flex items-center gap-1">
             <span>🍃</span> Fresh & Safe
           </span>
